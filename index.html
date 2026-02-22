@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Dungeon Sketch</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#f8f7f4" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+</head>
+<body>
+  <canvas></canvas>
+
+  <div class="hud">
+    <div class="brand">Dungeon Sketch</div>
+    <div class="row">
+      <button id="btnFinish" class="primary" title="Finish current wall">Finish</button>
+      <button id="btnUndo" title="Undo">Undo</button>
+      <button id="btnRedo" title="Redo">Redo</button>
+      <button id="btnClear" title="Clear all">Clear</button>
+      <button id="btnExport" title="Export PNG">Export</button>
+    </div>
+    <details class="panel">
+      <summary>Style</summary>
+      <div class="controls">
+        <label>
+          Wall width
+          <input id="wallWidth" type="range" min="2" max="14" step="1" value="6">
+        </label>
+        <label>
+          Shadow
+          <input id="shadowOn" type="checkbox" checked>
+        </label>
+        <label>
+          Shadow intensity
+          <input id="shadowOpacity" type="range" min="0" max="0.6" step="0.01" value="0.28">
+        </label>
+        <label>
+          Shadow blur
+          <input id="shadowBlur" type="range" min="0" max="20" step="1" value="8">
+        </label>
+        <label>
+          Shadow offset
+          <input id="shadowOffset" type="range" min="0" max="14" step="1" value="4">
+        </label>
+        <label>
+          Snap strength
+          <input id="snapStrength" type="range" min="0" max="1" step="0.05" value="0.85">
+        </label>
+      </div>
+      <div class="hint">
+        <div><b>Tap</b>: add wall point</div>
+        <div><b>Double‑tap</b> or <b>Finish</b>: end wall</div>
+        <div><b>Two‑finger drag</b>: pan</div>
+        <div><b>Pinch</b>: zoom</div>
+        <div><b>Long‑press</b>: remove last point</div>
+      </div>
+    </details>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
