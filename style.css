@@ -36,7 +36,7 @@ canvas { display: block; touch-action: none; }
   gap: 6px;
   padding: 8px;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(255,255,255,0.72);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
@@ -1987,196 +1987,131 @@ input[type="range"] {
 }
 
 
-/* ===== vTheme polish: light + dark interface themes ===== */
-:root {
-  --ui-bg: #f6f2ea;
-  --ui-bg-2: #ede7da;
-  --ui-panel: rgba(255, 252, 246, 0.78);
-  --ui-panel-strong: rgba(255, 251, 243, 0.9);
-  --ui-panel-border: rgba(73, 55, 32, 0.10);
-  --ui-panel-border-strong: rgba(73, 55, 32, 0.18);
-  --ui-text: rgba(28, 22, 16, 0.92);
-  --ui-text-muted: rgba(49, 40, 30, 0.68);
-  --ui-text-soft: rgba(49, 40, 30, 0.52);
-  --ui-button: rgba(255, 255, 255, 0.82);
-  --ui-button-hover: rgba(255, 255, 255, 0.96);
-  --ui-button-active: rgba(29, 23, 18, 0.92);
-  --ui-button-active-text: rgba(255,255,255,0.95);
-  --ui-button-border: rgba(58, 43, 25, 0.12);
-  --ui-shadow-lg: 0 14px 40px rgba(48, 35, 20, 0.12);
-  --ui-shadow-md: 0 8px 24px rgba(48, 35, 20, 0.10);
-  --ui-hairline: rgba(58, 43, 25, 0.08);
-  --ui-accent: #6f5af8;
-  --ui-accent-2: #8f7bff;
-  --ui-accent-soft: rgba(111, 90, 248, 0.14);
-  --ui-danger-soft: rgba(220, 38, 38, 0.10);
-  --ui-input: rgba(255,255,255,0.88);
-  --ui-banner: rgba(255, 244, 221, 0.94);
-  --ui-banner-border: rgba(194, 128, 28, 0.30);
-  --ui-donate: rgba(255,255,255,0.92);
+/* ===== vNext: top toolbar group collapse-to-right + polish ===== */
+.appTopbar .toolbarHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:8px;
+}
+.appTopbar .toolbarHeader .toolbarLabel{ margin:0; }
+.toolbarCollapseBtn{
+  appearance:none;
+  border:1px solid rgba(255,255,255,0.14);
+  background:rgba(255,255,255,0.04);
+  color:inherit;
+  border-radius:10px;
+  min-width:30px;
+  height:28px;
+  padding:0 8px;
+  font-size:15px;
+  line-height:1;
+  cursor:pointer;
+}
+.toolbarCollapseBtn:hover{ background:rgba(255,255,255,0.08); }
+
+/* Collapse individual top menus while keeping them docked to the right */
+.appTopbar .toolbarGroup.collapsed-right{
+  min-width: 150px !important;
+  width: fit-content !important;
+}
+.appTopbar .toolbarGroup.collapsed-right .toolbarRow,
+.appTopbar .toolbarGroup.collapsed-right .toolSubrow{
+  display:none !important;
+}
+.appTopbar .toolbarGroup.collapsed-right .toolbarHeader{ margin-bottom:0; }
+.appTopbar .toolbarGroup.collapsed-right{ padding-bottom:10px !important; }
+
+/* Wider, more readable undo/redo symbols */
+#btnUndo, #btnRedo{
+  font-size: 18px;
+  line-height: 1;
+  min-width: 44px;
+  letter-spacing: 0;
 }
 
-html[data-theme="dark"], body[data-theme="dark"] {
-  --ui-bg: #0f1219;
-  --ui-bg-2: #171b24;
-  --ui-panel: rgba(22, 26, 35, 0.78);
-  --ui-panel-strong: rgba(24, 29, 39, 0.92);
-  --ui-panel-border: rgba(255,255,255,0.07);
-  --ui-panel-border-strong: rgba(255,255,255,0.14);
-  --ui-text: rgba(241, 244, 250, 0.94);
-  --ui-text-muted: rgba(209, 216, 230, 0.76);
-  --ui-text-soft: rgba(191, 201, 220, 0.52);
-  --ui-button: rgba(34, 40, 53, 0.86);
-  --ui-button-hover: rgba(46, 54, 70, 0.95);
-  --ui-button-active: linear-gradient(180deg, rgba(132,104,255,0.95), rgba(105,84,224,0.95));
-  --ui-button-active-text: rgba(255,255,255,0.98);
-  --ui-button-border: rgba(255,255,255,0.10);
-  --ui-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.40);
-  --ui-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.34);
-  --ui-hairline: rgba(255,255,255,0.07);
-  --ui-accent: #9d88ff;
-  --ui-accent-2: #baaaff;
-  --ui-accent-soft: rgba(157, 136, 255, 0.18);
-  --ui-danger-soft: rgba(248, 113, 113, 0.16);
-  --ui-input: rgba(25, 31, 42, 0.90);
-  --ui-banner: rgba(58, 42, 12, 0.93);
-  --ui-banner-border: rgba(255, 199, 90, 0.32);
-  --ui-donate: rgba(19, 24, 33, 0.92);
+/* Fix donation button container square/box artifacts */
+.donateBanner{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.donateBannerLink{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
 }
 
-html, body { background: var(--ui-bg) !important; color: var(--ui-text); }
-
-/* Global UI surfaces */
-.row, .panel, .menuCard, .toolSubrow, .drawerCard, .leftDrawer .drawerCard, .pdfModalCard, .textEditOverlay {
-  background: var(--ui-panel) !important;
-  border-color: var(--ui-panel-border) !important;
-  box-shadow: var(--ui-shadow-lg) !important;
-  color: var(--ui-text) !important;
+/* Polished dark-mode UI overrides (works with common theme attrs/classes) */
+html[data-theme="dark"] body,
+body[data-theme="dark"],
+html.theme-dark body,
+body.theme-dark{
+  background: #10141d;
 }
-.puckWrap, .sectionCard, .sectionBody, .propsShelf, .propCard, .fontChip, .drawerTabs, .tabPanelsWrap, .panelPage {
-  border-color: var(--ui-panel-border) !important;
+html[data-theme="dark"] .drawerCard,
+body[data-theme="dark"] .drawerCard,
+html.theme-dark .drawerCard,
+body.theme-dark .drawerCard{
+  background: linear-gradient(180deg, rgba(20,26,37,0.96), rgba(16,20,30,0.95)) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35) !important;
 }
-
-/* Buttons */
-button, .tabBtn, .drawerMiniBtn, .fontChip, .alphaBannerClose, .donateBannerLink, .toolbarRow button, .tool {
-  background: var(--ui-button) !important;
-  color: var(--ui-text) !important;
-  border-color: var(--ui-button-border) !important;
-  box-shadow: none;
-}
-button:hover, .tabBtn:hover, .drawerMiniBtn:hover, .fontChip:hover, .donateBannerLink:hover, .toolbarRow button:hover, .tool:hover {
-  background: var(--ui-button-hover) !important;
-}
-button.primary, .tabBtn.primary, .tool.primary, .toolbarRow button.primary {
-  background: var(--ui-button-active) !important;
-  color: var(--ui-button-active-text) !important;
-  border-color: transparent !important;
-}
-
-/* Inputs + labels */
-label, .puckLabel, .hint, .toolbarLabel, .drawerTitle, .sectionTitle, .sectionSummary, .fontRecentHint, .alphaBannerText {
-  color: var(--ui-text-muted) !important;
-}
-.toolInlineRange, .toolInlineRange strong, .topbarTitle, .drawerHeader, .sectionHeader, .panel > summary, .menuCard > summary {
-  color: var(--ui-text) !important;
-}
-input[type="text"], input[type="number"], textarea, select {
-  background: var(--ui-input) !important;
-  color: var(--ui-text) !important;
-  border-color: var(--ui-button-border) !important;
-}
-input[type="range"] { accent-color: var(--ui-accent); }
-input[type="checkbox"] { accent-color: var(--ui-accent); }
-
-/* Topbar polish */
-.appTopbar::before {
-  background: linear-gradient(to bottom, color-mix(in srgb, var(--ui-bg) 90%, transparent), transparent) !important;
-}
-.appTopbar .toolbarShell, .appTopbar .toolbarGroup {
-  background: var(--ui-panel-strong) !important;
-  border-color: var(--ui-panel-border-strong) !important;
-  box-shadow: var(--ui-shadow-md) !important;
-}
-.appTopbar .toolbarLabel {
-  color: var(--ui-text-soft) !important;
-  letter-spacing: 0.12em;
-}
-#btnUndo, #btnRedo {
-  font-size: 16px !important;
-  line-height: 1 !important;
-  min-width: 40px !important;
-}
-#btnThemeToggle.themeToggleBtn {
-  min-width: 84px;
-  font-weight: 600;
-  letter-spacing: .01em;
-}
-html[data-theme="dark"] #btnThemeToggle.themeToggleBtn {
-  background: linear-gradient(180deg, rgba(36,43,57,.95), rgba(27,33,44,.95)) !important;
-  border-color: rgba(255,255,255,.12) !important;
-}
-
-/* Left drawer / sections */
-.leftDrawer .drawerCard, .drawerCard {
-  background: var(--ui-panel-strong) !important;
-  border: 1px solid var(--ui-panel-border-strong) !important;
-}
-.drawerTabs, .panelTabBar {
-  background: color-mix(in srgb, var(--ui-panel) 84%, transparent) !important;
-  border: 1px solid var(--ui-panel-border) !important;
-}
-.panelPage, .tabPanelsWrap { background: transparent !important; }
-.sectionCard {
-  background: color-mix(in srgb, var(--ui-panel) 88%, transparent) !important;
-  border: 1px solid var(--ui-panel-border) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
-}
-.sectionCard[open] .sectionHeader { background: color-mix(in srgb, var(--ui-accent-soft) 45%, transparent) !important; }
-.sectionBody { border-top: 1px solid var(--ui-hairline) !important; }
-
-/* Banner + floating chips */
-.alphaBanner {
-  background: var(--ui-banner) !important;
-  border: 1px solid var(--ui-banner-border) !important;
-  box-shadow: var(--ui-shadow-md) !important;
-  color: var(--ui-text) !important;
-}
-.alphaBanner strong { color: var(--ui-text) !important; }
-.donateBanner {
-  background: var(--ui-donate) !important;
-  border: 1px solid var(--ui-panel-border-strong) !important;
-  box-shadow: var(--ui-shadow-md) !important;
-}
-.donateBannerLink { font-weight: 600; }
-.topbarTitle {
-  background: var(--ui-panel-strong) !important;
-  border: 1px solid var(--ui-panel-border-strong) !important;
-  color: var(--ui-text) !important;
-  box-shadow: var(--ui-shadow-md) !important;
-}
-
-/* Overlay editor polish */
-.textEditOverlay {
-  border: 1px solid var(--ui-panel-border-strong) !important;
-}
-.textEditOverlay textarea, .textEditOverlay input, #textCanvasEditor {
-  background: var(--ui-input) !important;
-  color: var(--ui-text) !important;
-  border-color: var(--ui-button-border) !important;
-}
-
-/* Strong dark-mode glow-free polish */
-html[data-theme="dark"] .appTopbar .toolbarShell,
-html[data-theme="dark"] .leftDrawer .drawerCard,
+html[data-theme="dark"] .drawerHeader,
+body[data-theme="dark"] .drawerHeader,
+html[data-theme="dark"] .drawerTitle,
+body[data-theme="dark"] .drawerTitle,
 html[data-theme="dark"] .topbarTitle,
-html[data-theme="dark"] .donateBanner,
-html[data-theme="dark"] .alphaBanner {
-  backdrop-filter: blur(14px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
+body[data-theme="dark"] .topbarTitle{
+  color: rgba(245,248,255,0.95) !important;
 }
+html[data-theme="dark"] .drawerMiniBtn,
+body[data-theme="dark"] .drawerMiniBtn{
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+  color: rgba(235,240,255,0.88) !important;
+}
+html[data-theme="dark"] .panelTabBar,
+body[data-theme="dark"] .panelTabBar{
+  background: rgba(255,255,255,0.02) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+}
+html[data-theme="dark"] .tabBtn,
+body[data-theme="dark"] .tabBtn{
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: rgba(234,238,248,0.90) !important;
+}
+html[data-theme="dark"] .tabBtn:not(.primary):hover,
+body[data-theme="dark"] .tabBtn:not(.primary):hover{ background: rgba(255,255,255,0.06) !important; }
+html[data-theme="dark"] .controls label,
+body[data-theme="dark"] .controls label{
+  background: rgba(255,255,255,0.045) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: rgba(233,238,247,0.86) !important;
+}
+html[data-theme="dark"] .controls input[type=range],
+body[data-theme="dark"] .controls input[type=range]{ filter: saturate(1.05); }
+html[data-theme="dark"] .controls .sectionLabel,
+body[data-theme="dark"] .controls .sectionLabel{
+  background: transparent !important;
+  border: 0 !important;
+}
+html[data-theme="dark"] .donateBannerLink,
+body[data-theme="dark"] .donateBannerLink{
+  background: rgba(18,24,35,0.92) !important;
+  color: rgba(242,246,255,0.94) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.04) !important;
+}
+html[data-theme="dark"] .donateBannerLink:hover,
+body[data-theme="dark"] .donateBannerLink:hover{ background: rgba(24,31,45,0.94) !important; }
 
-/* Focus ring polish */
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, a:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--ui-accent) 85%, white 15%);
-  outline-offset: 2px;
+@media (max-width: 900px){
+  .appTopbar .toolbarGroup.collapsed-right{ min-width: 124px !important; }
+  .toolbarCollapseBtn{ min-width:28px; height:26px; }
 }
