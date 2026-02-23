@@ -1,9 +1,0 @@
-{
-  "name": "Dungeon Sketch",
-  "short_name": "DungeonSketch",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f8f7f4",
-  "theme_color": "#f8f7f4",
-  "icons": []
-}
