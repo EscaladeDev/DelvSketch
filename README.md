@@ -25,6 +25,9 @@ If you find the tool useful, there is an in-app “Tip the developer” button.
 
 ## License
 
-This project is licensed under a **custom proprietary license**.  
-Editing, redistribution, and commercial use are **not permitted without prior written permission**.
-See the `LICENSE` file for details.
+Dungeon Sketch is licensed under a **custom proprietary license**.
+
+- You may use the software to create maps (including for commercial projects).
+- You may **not** modify, redistribute, or commercially exploit the software itself without permission.
+
+See `LICENSE` for full details.
