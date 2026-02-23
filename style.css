@@ -2153,3 +2153,96 @@ input[type="range"] {
     bottom: calc(var(--ds-bottom-hud-offset) + 44px) !important;
   }
 }
+
+/* v33 style/render organization: grouped collapsible sections */
+.leftDrawer #styleRenderGeneral.styleSections{
+  display: grid;
+  gap: 10px;
+}
+
+.leftDrawer #styleRenderGeneral .styleSection{
+  margin: 0;
+  border: 1px solid rgba(17,24,39,.06);
+  background: rgba(255,255,255,.28);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset;
+  overflow: clip;
+}
+
+.leftDrawer #styleRenderGeneral .styleSection > summary{
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  color: rgba(17,24,39,.82);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  user-select: none;
+}
+.leftDrawer #styleRenderGeneral .styleSection > summary::-webkit-details-marker{ display:none; }
+.leftDrawer #styleRenderGeneral .styleSection > summary::after{
+  content: '▸';
+  font-size: 11px;
+  color: rgba(17,24,39,.55);
+  transform: translateY(-.5px);
+}
+.leftDrawer #styleRenderGeneral .styleSection[open] > summary{
+  border-bottom: 1px solid rgba(17,24,39,.05);
+  background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.16));
+}
+.leftDrawer #styleRenderGeneral .styleSection[open] > summary::after{
+  content: '▾';
+}
+
+.leftDrawer #styleRenderGeneral .styleSectionBody{
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.leftDrawer #styleRenderGeneral .styleSectionBody > label,
+.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
+  margin: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.38);
+  border: 1px solid rgba(17,24,39,.05);
+}
+
+.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow > label.inline{
+  min-width: 0;
+}
+
+/* remove double card styling from top-level wrappers now that sections own the cards */
+.leftDrawer #styleRenderGeneral.controls > label,
+.leftDrawer #styleRenderGeneral.controls > .shadowRow{
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+@media (max-width: 760px){
+  .leftDrawer #styleRenderGeneral .styleSection > summary{
+    padding: 9px 10px;
+  }
+  .leftDrawer #styleRenderGeneral .styleSectionBody{
+    padding: 7px;
+    gap: 7px;
+  }
+  .leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
+    grid-template-columns: 1fr;
+  }
+  .leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow .puckWrap{
+    justify-self: end;
+  }
+}
