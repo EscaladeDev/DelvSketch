@@ -19,8 +19,8 @@
       <div class="topbarTitle">Dungeon Sketch</div>
 
       <div class="toolbarShell" role="group" aria-label="Main toolbar">
-        <div class="toolbarGroup toolbarTools" aria-label="Tools">
-          <div class="toolbarLabel">Tools</div>
+        <details class="toolbarGroup toolbarTools toolbarCollapsible" open aria-label="Tools">
+          <summary class="toolbarLabel">Tools</summary>
           <div class="toolbarRow">
             <button class="tool" data-tool="select" title="Select/move/rotate props">Select</button>
             <button class="tool primary" data-tool="space" title="Rectangle (drag)">Rectangle</button>
@@ -36,20 +36,20 @@
               <input id="polySides" type="range" min="3" max="12" step="1" value="6">
             </label>
           </div>
-        </div>
+        </details>
 
-        <div class="toolbarGroup toolbarActions" aria-label="Actions">
-          <div class="toolbarLabel">Actions</div>
+        <details class="toolbarGroup toolbarActions toolbarCollapsible" open aria-label="Actions">
+          <summary class="toolbarLabel">Actions</summary>
           <div class="toolbarRow">
-            <button id="btnUndo" title="Undo">↶</button>
-            <button id="btnRedo" title="Redo">↷</button>
+            <button id="btnUndo" title="Undo" aria-label="Undo">⟲</button>
+            <button id="btnRedo" title="Redo" aria-label="Redo">⟳</button>
             <button id="btnClear" title="Clear all">Clear</button>
             <button id="btnSaveMap" title="Save map (.json)">Save</button>
             <button id="btnLoadMap" title="Load map (.json)">Load</button>
             <button id="btnExport" title="Export PNG">PNG</button>
             <button id="btnPDF" title="Export multipage PDF">PDF</button>
           </div>
-        </div>
+        </details>
       </div>
 </header>
 
