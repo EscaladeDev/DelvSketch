@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Dungeon Sketch Alpha</title>
+  <title>Dungeon Sketch</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#f8f7f4" />
@@ -16,7 +16,7 @@
   
   <div class="hud appShellHud">
     <header class="appTopbar" aria-label="Tools and actions">
-      <div class="topbarTitle">Dungeon Sketch Alpha</div>
+      <div class="topbarTitle">Dungeon Sketch Alpha v0.10</div>
 
       <div class="toolbarShell" role="group" aria-label="Main toolbar">
         <details class="toolbarGroup toolbarTools toolbarCollapsible" open aria-label="Tools">
@@ -81,112 +81,141 @@
         <div id="leftDrawerBody" class="drawerBody">
           <div class="tabPanelsWrap">
             <section id="styleRenderPage" class="panelPage" data-panel-page="style" role="tabpanel">
-              <div id="styleRenderGeneral" class="controls">
-                <label>
-                                    Grid size
-                                    <input id="gridSize" type="range" min="16" max="64" step="4" value="32">
-                                  </label>
+              <div id="styleRenderGeneral" class="controls styleSections">
 
-                                  <label>
-                                    Snap subdivisions <span id="snapDivOut">4</span>
-                                    <input id="snapDiv" type="range" min="1" max="8" step="1" value="4">
-                                  </label>
+                <details class="styleSection" open>
+                  <summary>Workspace</summary>
+                  <div class="styleSectionBody">
+                    <label>
+                      Grid size
+                      <input id="gridSize" type="range" min="16" max="64" step="4" value="32">
+                    </label>
 
-                                  <label>
-                                    Corridor width
-                                    <input id="corridorWidth" type="range" min="12" max="96" step="4" value="48">
-                                  </label>
+                    <label>
+                      Snap subdivisions <span id="snapDivOut">4</span>
+                      <input id="snapDiv" type="range" min="1" max="8" step="1" value="4">
+                    </label>
+                  </div>
+                </details>
 
-                                  <label>
-                                    Wall width
-                                    <input id="wallWidth" type="range" min="2" max="14" step="1" value="6">
-                                  </label>
-                                  <label>
-                                    Wall color
-                                    <input id="wallColor" type="color" value="#1f2933">
-                                  </label>
+                <details class="styleSection" open>
+                  <summary>Drawing &amp; Snapping</summary>
+                  <div class="styleSectionBody">
+                    <label>
+                      Corridor width
+                      <input id="corridorWidth" type="range" min="12" max="96" step="4" value="48">
+                    </label>
 
-                                  <label>
-                                    Interior floor color
-                                    <input id="floorColor" type="color" value="#ffffff">
-                                  </label>
+                    <label>
+                      Wall width
+                      <input id="wallWidth" type="range" min="2" max="14" step="1" value="6">
+                    </label>
 
-                                  <label>
-                                    Background color
-                                    <input id="backgroundColor" type="color" value="#f8f7f4">
-                                  </label>
+                    <label>
+                      Snap strength
+                      <input id="snapStrength" type="range" min="0" max="1" step="0.05" value="0.95">
+                    </label>
 
-                                  <label class="inline">
-                                    <span>Transparent background</span>
-                                    <input id="transparentBg" type="checkbox">
-                                  </label>
+                    <label class="inline">
+                      <span>Prop grid snap (move/rotate)</span>
+                      <input id="propSnapToggle" type="checkbox" checked>
+                    </label>
+                  </div>
+                </details>
 
+                <details class="styleSection" open>
+                  <summary>Map Base Style</summary>
+                  <div class="styleSectionBody">
+                    <label>
+                      Wall color
+                      <input id="wallColor" type="color" value="#1f2933">
+                    </label>
 
-                                  <div class="shadowRow">
-                                    <label class="inline">
-                                      <span>Interior shadow</span>
-                                      <input id="shadowOn" type="checkbox" checked>
-                                    </label>
+                    <label>
+                      Interior floor color
+                      <input id="floorColor" type="color" value="#ffffff">
+                    </label>
 
-                                    <div class="puckWrap" title="Drag the dot to set shadow direction + length">
-                                      <canvas id="shadowPuck" width="120" height="120"></canvas>
-                                      <div class="puckLabel">direction</div>
-                                    </div>
-                                  </div>
+                    <label>
+                      Background color
+                      <input id="backgroundColor" type="color" value="#f8f7f4">
+                    </label>
 
-                                  <label>
-                                    Shadow opacity
-                                    <input id="shadowOpacity" type="range" min="0" max="0.9" step="0.01" value="0.34">
-                                  </label>
-                                  <label>
-                                    Shadow color
-                                    <input id="shadowColor" type="color" value="#000000">
-                                  </label>
+                    <label class="inline">
+                      <span>Transparent background</span>
+                      <input id="transparentBg" type="checkbox">
+                    </label>
+                  </div>
+                </details>
 
+                <details class="styleSection" open>
+                  <summary>Shadows &amp; Depth</summary>
+                  <div class="styleSectionBody">
+                    <div class="shadowRow">
+                      <label class="inline">
+                        <span>Interior shadow</span>
+                        <input id="shadowOn" type="checkbox" checked>
+                      </label>
 
-                                  <label class="inline">
-                                    <span>Cross hatching (outside)</span>
-                                    <input id="hatchOn" type="checkbox" checked>
-                                  </label>
+                      <div class="puckWrap" title="Drag the dot to set shadow direction + length">
+                        <canvas id="shadowPuck" width="120" height="120"></canvas>
+                        <div class="puckLabel">direction</div>
+                      </div>
+                    </div>
 
-                                  <label>
-                                    Hatch density
-                                    <input id="hatchDensity" type="range" min="0.25" max="30" step="0.25" value="14">
-                                  </label>
+                    <label>
+                      Shadow opacity
+                      <input id="shadowOpacity" type="range" min="0" max="0.9" step="0.01" value="0.34">
+                    </label>
+                    <label>
+                      Shadow color
+                      <input id="shadowColor" type="color" value="#000000">
+                    </label>
+                  </div>
+                </details>
 
-                                  <label>
-                                    Hatch opacity
-                                    <input id="hatchOpacity" type="range" min="0" max="0.7" step="0.01" value="0.22">
-                                  </label>
-                                  <label>
-                                    Hatch color
-                                    <input id="hatchColor" type="color" value="#1f2933">
-                                  </label>
+                <details class="styleSection" open>
+                  <summary>Sketch Pattern</summary>
+                  <div class="styleSectionBody">
+                    <label class="inline">
+                      <span>Cross hatching (outside)</span>
+                      <input id="hatchOn" type="checkbox" checked>
+                    </label>
 
+                    <label>
+                      Hatch density
+                      <input id="hatchDensity" type="range" min="0.25" max="30" step="0.25" value="14">
+                    </label>
 
-                                  <label>
-                                    Hatch depth
-                                    <input id="hatchDepth" type="range" min="0" max="34" step="1" value="12">
-                                  </label>
+                    <label>
+                      Hatch opacity
+                      <input id="hatchOpacity" type="range" min="0" max="0.7" step="0.01" value="0.22">
+                    </label>
+                    <label>
+                      Hatch color
+                      <input id="hatchColor" type="color" value="#1f2933">
+                    </label>
 
-                                  <label>
-                                    Snap strength
-                                    <input id="snapStrength" type="range" min="0" max="1" step="0.05" value="0.95">
-                                  </label>
+                    <label>
+                      Hatch depth
+                      <input id="hatchDepth" type="range" min="0" max="34" step="1" value="12">
+                    </label>
+                  </div>
+                </details>
 
-                                  <label class="inline">
-                                    <span>Prop grid snap (move/rotate)</span>
-                                    <input id="propSnapToggle" type="checkbox" checked>
-                                  </label>
-
-                                  <label class="inline">
-                                    <span>Show text in preview</span>
-                                    <input id="showTextPreview" type="checkbox" checked>
-                                  </label>
-                                  <label class="inline">
-                                    <span>Include text in export</span>
-                                    <input id="showTextExport" type="checkbox" checked>
-                                  </label>
+                <details class="styleSection" open>
+                  <summary>Text &amp; Label Render</summary>
+                  <div class="styleSectionBody">
+                    <label class="inline">
+                      <span>Show text in preview</span>
+                      <input id="showTextPreview" type="checkbox" checked>
+                    </label>
+                    <label class="inline">
+                      <span>Include text in export</span>
+                      <input id="showTextExport" type="checkbox" checked>
+                    </label>
+                  </div>
+                </details>
 
               </div>
 
