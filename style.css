@@ -1987,262 +1987,196 @@ input[type="range"] {
 }
 
 
-/* v33 top-right collapsible tool/action menus */
-.appTopbar{
-  position: fixed !important;
-  top: 18px !important;
-  left: 12px !important;
-  right: 12px !important;
-  display: flex !important;
-  align-items: flex-start !important;
-  justify-content: center !important;
-  pointer-events: none;
-  z-index: 55;
-}
-.appTopbar .topbarTitle{
-  position: absolute !important;
-  left: 50% !important;
-  transform: translateX(-50%);
-  top: 2px !important;
-  z-index: 56;
-}
-.appTopbar .toolbarShell{
-  position: absolute !important;
-  right: 0 !important;
-  top: 0 !important;
-  width: auto !important;
-  max-width: min(760px, calc(100vw - 32px));
-  display: flex !important;
-  flex-direction: row !important;
-  gap: 10px !important;
-  align-items: flex-start !important;
-  justify-content: flex-end !important;
-  pointer-events: auto;
-}
-.appTopbar .toolbarGroup{
-  margin: 0 !important;
-  width: auto !important;
-  min-width: 170px;
-  border-radius: 16px;
-  background: rgba(255,255,255,0.92);
-  border: 1px solid rgba(31,41,51,0.08);
-  box-shadow: 0 8px 22px rgba(0,0,0,0.08);
-  padding: 8px;
-}
-.appTopbar .toolbarCollapsible{ overflow: hidden; }
-.appTopbar .toolbarCollapsible > summary{
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid rgba(31,41,51,0.08);
-  background: rgba(250,250,251,0.9);
-  color: rgba(31,41,51,0.72);
-  text-transform: uppercase;
-  letter-spacing: .16em;
-  font-size: 11px;
-  font-weight: 700;
-}
-.appTopbar .toolbarCollapsible > summary::-webkit-details-marker{ display:none; }
-.appTopbar .toolbarCollapsible > summary::after{
-  content: '▾';
-  font-size: 13px;
-  letter-spacing: normal;
-  color: rgba(31,41,51,0.55);
-  transition: transform .16s ease;
-}
-.appTopbar .toolbarCollapsible:not([open]) > summary::after{ transform: rotate(-90deg); }
-.appTopbar .toolbarCollapsible > .toolbarRow,
-.appTopbar .toolbarCollapsible > .toolSubrow{
-  margin-top: 8px;
-}
-.appTopbar .toolbarTools .toolbarRow{
-  display: grid !important;
-  grid-template-columns: repeat(7, auto);
-  gap: 8px !important;
-  flex-wrap: nowrap !important;
-}
-.appTopbar .toolbarActions .toolbarRow{
-  display: grid !important;
-  grid-template-columns: repeat(7, auto);
-  gap: 8px !important;
-  flex-wrap: nowrap !important;
-}
-.appTopbar .toolbarTools .toolbarRow .tool,
-.appTopbar .toolbarActions .toolbarRow button{
-  min-height: 40px;
-  padding: 0 12px;
-  border-radius: 12px;
-  white-space: nowrap;
-  width: auto !important;
-}
-.appTopbar .toolbarActions .toolbarRow button#btnUndo,
-.appTopbar .toolbarActions .toolbarRow button#btnRedo{
-  min-width: 52px;
-  font-size: 24px !important;
-  line-height: 1;
-  font-weight: 700;
-  padding-inline: 10px;
-}
-/* ensure content hides when collapsed */
-.appTopbar .toolbarCollapsible:not([open]) > .toolbarRow,
-.appTopbar .toolbarCollapsible:not([open]) > .toolSubrow{ display: none !important; }
-
-/* keep alpha banner above toolbar */
-.alphaBanner{ z-index: 90 !important; }
-
-@media (max-width: 1180px){
-  .appTopbar .toolbarShell{
-    max-width: calc(100vw - 24px);
-    gap: 8px !important;
-  }
-  .appTopbar .toolbarGroup{ min-width: 150px; }
-  .appTopbar .toolbarTools .toolbarRow{ grid-template-columns: repeat(4, auto); }
-  .appTopbar .toolbarActions .toolbarRow{ grid-template-columns: repeat(4, auto); }
-}
-@media (max-width: 860px){
-  .appTopbar{ top: 12px !important; }
-  .appTopbar .topbarTitle{ display:none !important; }
-  .appTopbar .toolbarShell{ left: 0; right: 0 !important; justify-content: flex-end !important; flex-wrap: wrap; }
-  .appTopbar .toolbarGroup{ min-width: 0; width: calc(50vw - 20px) !important; }
-  .appTopbar .toolbarTools .toolbarRow,
-  .appTopbar .toolbarActions .toolbarRow{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+/* ===== vTheme polish: light + dark interface themes ===== */
+:root {
+  --ui-bg: #f6f2ea;
+  --ui-bg-2: #ede7da;
+  --ui-panel: rgba(255, 252, 246, 0.78);
+  --ui-panel-strong: rgba(255, 251, 243, 0.9);
+  --ui-panel-border: rgba(73, 55, 32, 0.10);
+  --ui-panel-border-strong: rgba(73, 55, 32, 0.18);
+  --ui-text: rgba(28, 22, 16, 0.92);
+  --ui-text-muted: rgba(49, 40, 30, 0.68);
+  --ui-text-soft: rgba(49, 40, 30, 0.52);
+  --ui-button: rgba(255, 255, 255, 0.82);
+  --ui-button-hover: rgba(255, 255, 255, 0.96);
+  --ui-button-active: rgba(29, 23, 18, 0.92);
+  --ui-button-active-text: rgba(255,255,255,0.95);
+  --ui-button-border: rgba(58, 43, 25, 0.12);
+  --ui-shadow-lg: 0 14px 40px rgba(48, 35, 20, 0.12);
+  --ui-shadow-md: 0 8px 24px rgba(48, 35, 20, 0.10);
+  --ui-hairline: rgba(58, 43, 25, 0.08);
+  --ui-accent: #6f5af8;
+  --ui-accent-2: #8f7bff;
+  --ui-accent-soft: rgba(111, 90, 248, 0.14);
+  --ui-danger-soft: rgba(220, 38, 38, 0.10);
+  --ui-input: rgba(255,255,255,0.88);
+  --ui-banner: rgba(255, 244, 221, 0.94);
+  --ui-banner-border: rgba(194, 128, 28, 0.30);
+  --ui-donate: rgba(255,255,255,0.92);
 }
 
-/* v33b: move Dungeon Sketch title pill to bottom center */
-.appTopbar .topbarTitle{
-  top: auto !important;
-  bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
-  z-index: 35 !important;
-  pointer-events: auto;
+html[data-theme="dark"], body[data-theme="dark"] {
+  --ui-bg: #0f1219;
+  --ui-bg-2: #171b24;
+  --ui-panel: rgba(22, 26, 35, 0.78);
+  --ui-panel-strong: rgba(24, 29, 39, 0.92);
+  --ui-panel-border: rgba(255,255,255,0.07);
+  --ui-panel-border-strong: rgba(255,255,255,0.14);
+  --ui-text: rgba(241, 244, 250, 0.94);
+  --ui-text-muted: rgba(209, 216, 230, 0.76);
+  --ui-text-soft: rgba(191, 201, 220, 0.52);
+  --ui-button: rgba(34, 40, 53, 0.86);
+  --ui-button-hover: rgba(46, 54, 70, 0.95);
+  --ui-button-active: linear-gradient(180deg, rgba(132,104,255,0.95), rgba(105,84,224,0.95));
+  --ui-button-active-text: rgba(255,255,255,0.98);
+  --ui-button-border: rgba(255,255,255,0.10);
+  --ui-shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.40);
+  --ui-shadow-md: 0 10px 28px rgba(0, 0, 0, 0.34);
+  --ui-hairline: rgba(255,255,255,0.07);
+  --ui-accent: #9d88ff;
+  --ui-accent-2: #baaaff;
+  --ui-accent-soft: rgba(157, 136, 255, 0.18);
+  --ui-danger-soft: rgba(248, 113, 113, 0.16);
+  --ui-input: rgba(25, 31, 42, 0.90);
+  --ui-banner: rgba(58, 42, 12, 0.93);
+  --ui-banner-border: rgba(255, 199, 90, 0.32);
+  --ui-donate: rgba(19, 24, 33, 0.92);
 }
 
-/* keep title clear of the donation chip on very small widths */
-@media (max-width: 720px){
-  .appTopbar .topbarTitle{
-    bottom: calc(env(safe-area-inset-bottom) + 52px) !important;
-  }
+html, body { background: var(--ui-bg) !important; color: var(--ui-text); }
+
+/* Global UI surfaces */
+.row, .panel, .menuCard, .toolSubrow, .drawerCard, .leftDrawer .drawerCard, .pdfModalCard, .textEditOverlay {
+  background: var(--ui-panel) !important;
+  border-color: var(--ui-panel-border) !important;
+  box-shadow: var(--ui-shadow-lg) !important;
+  color: var(--ui-text) !important;
+}
+.puckWrap, .sectionCard, .sectionBody, .propsShelf, .propCard, .fontChip, .drawerTabs, .tabPanelsWrap, .panelPage {
+  border-color: var(--ui-panel-border) !important;
 }
 
-
-/* v33c: corrected bottom-centered title pill alignment */
-:root{ --ds-bottom-hud-offset: calc(env(safe-area-inset-bottom) + 14px); }
-.appTopbar .topbarTitle{
-  position: fixed !important;
-  top: auto !important;
-  bottom: var(--ds-bottom-hud-offset) !important;
-  left: 50% !important;
-  right: auto !important;
-  transform: translateX(-50%) !important;
-  z-index: 35 !important;
-  margin: 0 !important;
-  pointer-events: auto;
+/* Buttons */
+button, .tabBtn, .drawerMiniBtn, .fontChip, .alphaBannerClose, .donateBannerLink, .toolbarRow button, .tool {
+  background: var(--ui-button) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-button-border) !important;
+  box-shadow: none;
 }
-.donateBanner{ bottom: var(--ds-bottom-hud-offset) !important; }
-@media (max-width: 720px){
-  .appTopbar .topbarTitle{
-    bottom: calc(var(--ds-bottom-hud-offset) + 44px) !important;
-  }
+button:hover, .tabBtn:hover, .drawerMiniBtn:hover, .fontChip:hover, .donateBannerLink:hover, .toolbarRow button:hover, .tool:hover {
+  background: var(--ui-button-hover) !important;
+}
+button.primary, .tabBtn.primary, .tool.primary, .toolbarRow button.primary {
+  background: var(--ui-button-active) !important;
+  color: var(--ui-button-active-text) !important;
+  border-color: transparent !important;
 }
 
-/* v33 style/render organization: grouped collapsible sections */
-.leftDrawer #styleRenderGeneral.styleSections{
-  display: grid;
-  gap: 10px;
+/* Inputs + labels */
+label, .puckLabel, .hint, .toolbarLabel, .drawerTitle, .sectionTitle, .sectionSummary, .fontRecentHint, .alphaBannerText {
+  color: var(--ui-text-muted) !important;
+}
+.toolInlineRange, .toolInlineRange strong, .topbarTitle, .drawerHeader, .sectionHeader, .panel > summary, .menuCard > summary {
+  color: var(--ui-text) !important;
+}
+input[type="text"], input[type="number"], textarea, select {
+  background: var(--ui-input) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-button-border) !important;
+}
+input[type="range"] { accent-color: var(--ui-accent); }
+input[type="checkbox"] { accent-color: var(--ui-accent); }
+
+/* Topbar polish */
+.appTopbar::before {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--ui-bg) 90%, transparent), transparent) !important;
+}
+.appTopbar .toolbarShell, .appTopbar .toolbarGroup {
+  background: var(--ui-panel-strong) !important;
+  border-color: var(--ui-panel-border-strong) !important;
+  box-shadow: var(--ui-shadow-md) !important;
+}
+.appTopbar .toolbarLabel {
+  color: var(--ui-text-soft) !important;
+  letter-spacing: 0.12em;
+}
+#btnUndo, #btnRedo {
+  font-size: 16px !important;
+  line-height: 1 !important;
+  min-width: 40px !important;
+}
+#btnThemeToggle.themeToggleBtn {
+  min-width: 84px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+html[data-theme="dark"] #btnThemeToggle.themeToggleBtn {
+  background: linear-gradient(180deg, rgba(36,43,57,.95), rgba(27,33,44,.95)) !important;
+  border-color: rgba(255,255,255,.12) !important;
 }
 
-.leftDrawer #styleRenderGeneral .styleSection{
-  margin: 0;
-  border: 1px solid rgba(17,24,39,.06);
-  background: rgba(255,255,255,.28);
-  border-radius: 12px;
-  box-shadow: 0 1px 0 rgba(255,255,255,.55) inset;
-  overflow: clip;
+/* Left drawer / sections */
+.leftDrawer .drawerCard, .drawerCard {
+  background: var(--ui-panel-strong) !important;
+  border: 1px solid var(--ui-panel-border-strong) !important;
+}
+.drawerTabs, .panelTabBar {
+  background: color-mix(in srgb, var(--ui-panel) 84%, transparent) !important;
+  border: 1px solid var(--ui-panel-border) !important;
+}
+.panelPage, .tabPanelsWrap { background: transparent !important; }
+.sectionCard {
+  background: color-mix(in srgb, var(--ui-panel) 88%, transparent) !important;
+  border: 1px solid var(--ui-panel-border) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.sectionCard[open] .sectionHeader { background: color-mix(in srgb, var(--ui-accent-soft) 45%, transparent) !important; }
+.sectionBody { border-top: 1px solid var(--ui-hairline) !important; }
+
+/* Banner + floating chips */
+.alphaBanner {
+  background: var(--ui-banner) !important;
+  border: 1px solid var(--ui-banner-border) !important;
+  box-shadow: var(--ui-shadow-md) !important;
+  color: var(--ui-text) !important;
+}
+.alphaBanner strong { color: var(--ui-text) !important; }
+.donateBanner {
+  background: var(--ui-donate) !important;
+  border: 1px solid var(--ui-panel-border-strong) !important;
+  box-shadow: var(--ui-shadow-md) !important;
+}
+.donateBannerLink { font-weight: 600; }
+.topbarTitle {
+  background: var(--ui-panel-strong) !important;
+  border: 1px solid var(--ui-panel-border-strong) !important;
+  color: var(--ui-text) !important;
+  box-shadow: var(--ui-shadow-md) !important;
 }
 
-.leftDrawer #styleRenderGeneral .styleSection > summary{
-  list-style: none;
-  cursor: pointer;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .03em;
-  color: rgba(17,24,39,.82);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  user-select: none;
+/* Overlay editor polish */
+.textEditOverlay {
+  border: 1px solid var(--ui-panel-border-strong) !important;
 }
-.leftDrawer #styleRenderGeneral .styleSection > summary::-webkit-details-marker{ display:none; }
-.leftDrawer #styleRenderGeneral .styleSection > summary::after{
-  content: '▸';
-  font-size: 11px;
-  color: rgba(17,24,39,.55);
-  transform: translateY(-.5px);
-}
-.leftDrawer #styleRenderGeneral .styleSection[open] > summary{
-  border-bottom: 1px solid rgba(17,24,39,.05);
-  background: linear-gradient(180deg, rgba(255,255,255,.35), rgba(255,255,255,.16));
-}
-.leftDrawer #styleRenderGeneral .styleSection[open] > summary::after{
-  content: '▾';
+.textEditOverlay textarea, .textEditOverlay input, #textCanvasEditor {
+  background: var(--ui-input) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-button-border) !important;
 }
 
-.leftDrawer #styleRenderGeneral .styleSectionBody{
-  padding: 8px;
-  display: grid;
-  gap: 8px;
+/* Strong dark-mode glow-free polish */
+html[data-theme="dark"] .appTopbar .toolbarShell,
+html[data-theme="dark"] .leftDrawer .drawerCard,
+html[data-theme="dark"] .topbarTitle,
+html[data-theme="dark"] .donateBanner,
+html[data-theme="dark"] .alphaBanner {
+  backdrop-filter: blur(14px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(120%) !important;
 }
 
-.leftDrawer #styleRenderGeneral .styleSectionBody > label,
-.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
-  margin: 0;
-  padding: 8px;
-  border-radius: 10px;
-  background: rgba(255,255,255,.38);
-  border: 1px solid rgba(17,24,39,.05);
-}
-
-.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
-  display: grid;
-  grid-template-columns: minmax(0,1fr) auto;
-  align-items: center;
-  gap: 8px;
-}
-.leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow > label.inline{
-  min-width: 0;
-}
-
-/* remove double card styling from top-level wrappers now that sections own the cards */
-.leftDrawer #styleRenderGeneral.controls > label,
-.leftDrawer #styleRenderGeneral.controls > .shadowRow{
-  padding: 0;
-  background: transparent;
-  border: 0;
-}
-
-@media (max-width: 760px){
-  .leftDrawer #styleRenderGeneral .styleSection > summary{
-    padding: 9px 10px;
-  }
-  .leftDrawer #styleRenderGeneral .styleSectionBody{
-    padding: 7px;
-    gap: 7px;
-  }
-  .leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow{
-    grid-template-columns: 1fr;
-  }
-  .leftDrawer #styleRenderGeneral .styleSectionBody > .shadowRow .puckWrap{
-    justify-self: end;
-  }
+/* Focus ring polish */
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible, a:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 85%, white 15%);
+  outline-offset: 2px;
 }
