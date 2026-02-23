@@ -16,12 +16,12 @@
   
   <div class="hud appShellHud">
     <header class="appTopbar" aria-label="Tools and actions">
-      <div class="topbarTitle">Dungeon Sketch Alpha v0.10</div>
+      <div class="topbarTitle">Dungeon Sketch</div>
 
       <div class="toolbarShell" role="group" aria-label="Main toolbar">
         <div class="toolbarGroup toolbarTools" aria-label="Tools">
-          <div class="toolbarLabel">Tools</div>
-          <div class="toolbarRow">
+          <div class="toolbarHeader"><div class="toolbarLabel">Tools</div><button id="btnToggleToolsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" aria-controls="toolbarToolsRow" title="Collapse tools menu">⟨</button></div>
+          <div id="toolbarToolsRow" class="toolbarRow">
             <button class="tool" data-tool="select" title="Select/move/rotate props">Select</button>
             <button class="tool primary" data-tool="space" title="Rectangle (drag)">Rectangle</button>
             <button class="tool" data-tool="path" title="Path (tap points)">Path</button>
@@ -39,11 +39,10 @@
         </div>
 
         <div class="toolbarGroup toolbarActions" aria-label="Actions">
-          <div class="toolbarLabel">Actions</div>
-          <div class="toolbarRow">
-            <button id="btnUndo" title="Undo">↶</button>
-            <button id="btnRedo" title="Redo">↷</button>
-            <button id="btnThemeToggle" type="button" class="themeToggleBtn" title="Toggle interface theme" aria-pressed="false">🌙 Dark</button>
+          <div class="toolbarHeader"><div class="toolbarLabel">Actions</div><button id="btnToggleActionsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" aria-controls="toolbarActionsRow" title="Collapse actions menu">⟨</button></div>
+          <div id="toolbarActionsRow" class="toolbarRow">
+            <button id="btnUndo" title="Undo">⟲</button>
+            <button id="btnRedo" title="Redo">⟳</button>
             <button id="btnClear" title="Clear all">Clear</button>
             <button id="btnSaveMap" title="Save map (.json)">Save</button>
             <button id="btnLoadMap" title="Load map (.json)">Load</button>
