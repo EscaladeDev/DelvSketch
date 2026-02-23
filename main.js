@@ -97,8 +97,6 @@ const btnUnder = document.getElementById("btnUnder")
 const btnFinish = document.getElementById("btnFinish")
 const btnUndo = document.getElementById("btnUndo")
 const btnRedo = document.getElementById("btnRedo")
-const btnThemeToggle = document.getElementById("btnThemeToggle")
-const themeColorMeta = document.querySelector('meta[name="theme-color"]')
 const btnClear = document.getElementById("btnClear")
 const btnSaveMap = document.getElementById("btnSaveMap")
 const btnLoadMap = document.getElementById("btnLoadMap")
@@ -140,56 +138,6 @@ const pdfOverviewInput = document.getElementById("pdfOverview")
 const pdfIncludeEmptyTilesInput = document.getElementById("pdfIncludeEmptyTiles")
 const pdfTiledSection = document.getElementById("pdfTiledSection")
 
-
-const THEME_STORAGE_KEY = "dungeonSketch.uiTheme"
-const THEME_LIGHT = "light"
-const THEME_DARK = "dark"
-
-function getPreferredTheme(){
-  const saved = (() => { try { return localStorage.getItem(THEME_STORAGE_KEY) } catch (_) { return null } })()
-  if (saved === THEME_LIGHT || saved === THEME_DARK) return saved
-  try {
-    return (globalThis.matchMedia && globalThis.matchMedia("(prefers-color-scheme: dark)").matches) ? THEME_DARK : THEME_LIGHT
-  } catch (_) {
-    return THEME_LIGHT
-  }
-}
-function applyUiTheme(theme){
-  const next = (theme === THEME_DARK) ? THEME_DARK : THEME_LIGHT
-  document.documentElement.dataset.theme = next
-  if (document.body) document.body.dataset.theme = next
-  if (btnThemeToggle){
-    const isDark = next === THEME_DARK
-    btnThemeToggle.setAttribute("aria-pressed", isDark ? "true" : "false")
-    btnThemeToggle.textContent = isDark ? "☀ Light" : "🌙 Dark"
-    btnThemeToggle.title = isDark ? "Switch to light theme" : "Switch to dark theme"
-  }
-  if (themeColorMeta){
-    themeColorMeta.setAttribute("content", next === THEME_DARK ? "#11131a" : "#f6f2ea")
-  }
-  return next
-}
-function saveUiTheme(theme){ try { localStorage.setItem(THEME_STORAGE_KEY, theme) } catch (_) {} }
-function toggleUiTheme(){
-  const current = document.documentElement.dataset.theme === THEME_DARK ? THEME_DARK : THEME_LIGHT
-  const next = current === THEME_DARK ? THEME_LIGHT : THEME_DARK
-  applyUiTheme(next)
-  saveUiTheme(next)
-}
-
-applyUiTheme(getPreferredTheme())
-if (btnThemeToggle) btnThemeToggle.addEventListener("click", toggleUiTheme)
-try {
-  const mq = globalThis.matchMedia ? globalThis.matchMedia("(prefers-color-scheme: dark)") : null
-  if (mq && typeof mq.addEventListener === "function") {
-    mq.addEventListener("change", (e) => {
-      const saved = localStorage.getItem(THEME_STORAGE_KEY)
-      if (saved === THEME_LIGHT || saved === THEME_DARK) return
-      applyUiTheme(e.matches ? THEME_DARK : THEME_LIGHT)
-    })
-  }
-} catch (_) {}
-
 // controls
 const gridSize = document.getElementById("gridSize")
 const corridorWidth = document.getElementById("corridorWidth")
@@ -230,6 +178,31 @@ const googleFontFamilyInput = document.getElementById("googleFontFamilyInput")
 const btnLoadGoogleFont = document.getElementById("btnLoadGoogleFont")
 const googleFontStatus = document.getElementById("googleFontStatus")
 const googleFontRecent = document.getElementById("googleFontRecent")
+
+const btnToggleToolsMenu = document.getElementById("btnToggleToolsMenu")
+const btnToggleActionsMenu = document.getElementById("btnToggleActionsMenu")
+const toolbarToolsGroup = document.querySelector(".toolbarGroup.toolbarTools")
+const toolbarActionsGroup = document.querySelector(".toolbarGroup.toolbarActions")
+
+function setToolbarGroupCollapsed(groupEl, btnEl, collapsed){
+  if (!groupEl || !btnEl) return
+  groupEl.classList.toggle("collapsed-right", !!collapsed)
+  btnEl.setAttribute("aria-expanded", collapsed ? "false" : "true")
+  btnEl.textContent = collapsed ? "⟩" : "⟨"
+}
+function wireToolbarGroupCollapse(groupEl, btnEl, storageKey){
+  if (!groupEl || !btnEl) return
+  let collapsed = false
+  try { collapsed = localStorage.getItem(storageKey) === "1" } catch {}
+  setToolbarGroupCollapsed(groupEl, btnEl, collapsed)
+  btnEl.addEventListener("click", ()=>{
+    const next = !groupEl.classList.contains("collapsed-right")
+    setToolbarGroupCollapsed(groupEl, btnEl, next)
+    try { localStorage.setItem(storageKey, next ? "1" : "0") } catch {}
+  })
+}
+wireToolbarGroupCollapse(toolbarToolsGroup, btnToggleToolsMenu, "ds_toolbar_tools_collapsed")
+wireToolbarGroupCollapse(toolbarActionsGroup, btnToggleActionsMenu, "ds_toolbar_actions_collapsed")
 
 // Shadow puck
 const puck = document.getElementById("shadowPuck")
