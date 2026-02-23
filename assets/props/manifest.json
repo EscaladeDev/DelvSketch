@@ -1,0 +1,81 @@
+{
+  "assets": [
+    {
+      "id": "door-1",
+      "name": "Door 1x",
+      "src": "door-span.svg",
+      "gridW": 1.0,
+      "gridH": 0.42
+    },
+    {
+      "id": "door-2",
+      "name": "Door 2x",
+      "src": "door-span.svg",
+      "gridW": 2.0,
+      "gridH": 0.42
+    },
+    {
+      "id": "door-3",
+      "name": "Door 3x",
+      "src": "door-span.svg",
+      "gridW": 3.0,
+      "gridH": 0.42
+    },
+    {
+      "id": "door-arch",
+      "name": "Arch Door",
+      "src": "door-arch.svg",
+      "gridW": 0.95,
+      "gridH": 0.95
+    },
+    {
+      "id": "bed",
+      "name": "Bed",
+      "src": "bed.svg",
+      "gridW": 1.6,
+      "gridH": 1.0
+    },
+    {
+      "id": "table",
+      "name": "Table",
+      "src": "table.svg",
+      "gridW": 1.6,
+      "gridH": 1.0
+    },
+    {
+      "id": "chest",
+      "name": "Chest",
+      "src": "chest.svg",
+      "gridW": 1.0,
+      "gridH": 0.8
+    },
+    {
+      "id": "fireplace",
+      "name": "Fireplace",
+      "src": "fireplace.svg",
+      "gridW": 1.1,
+      "gridH": 1.1
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "src": "stairs.svg",
+      "gridW": 1.5,
+      "gridH": 1.0
+    },
+    {
+      "id": "column",
+      "name": "Column",
+      "src": "column.svg",
+      "gridW": 0.8,
+      "gridH": 0.8
+    },
+    {
+      "id": "crate",
+      "name": "Crate",
+      "src": "crate.svg",
+      "gridW": 0.8,
+      "gridH": 0.8
+    }
+  ]
+}

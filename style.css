@@ -1,0 +1,1987 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #f8f7f4;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+canvas { display: block; touch-action: none; }
+
+.hud {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+  padding: 14px;
+  z-index: 10;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+
+.brand {
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  font-size: 14px;
+  color: rgba(20, 25, 30, 0.86);
+  margin-bottom: 10px;
+}
+
+.row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  pointer-events: auto;
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  background: rgba(0,0,0,0.10);
+  margin: 0 2px;
+}
+
+button {
+  appearance: none;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.85);
+  padding: 7px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  color: rgba(20, 25, 30, 0.86);
+}
+
+button.primary {
+  background: rgba(20, 25, 30, 0.90);
+  color: rgba(255,255,255,0.92);
+  border-color: rgba(0,0,0,0.12);
+}
+
+button:active { transform: translateY(1px); }
+
+.panel {
+  margin-top: 10px;
+  margin-bottom: max(14px, calc(env(safe-area-inset-bottom) + 10px));
+  width: max-content;
+  max-width: min(360px, calc(100vw - 28px));
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 170px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding: 10px 12px;
+  pointer-events: auto;
+}
+
+.panel > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(20, 25, 30, 0.86);
+  outline: none;
+}
+.panel > summary::-webkit-details-marker { display:none; }
+
+.panel > summary {
+  position: sticky;
+  top: -10px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.92), rgba(255,255,255,0.78));
+  padding: 2px 0 8px 0;
+  z-index: 1;
+}
+.controls {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 10px);
+}
+
+.controls { display: grid; gap: 8px; margin-top: 8px; }
+label { display: grid; gap: 4px; font-size: 11px; color: rgba(20, 25, 30, 0.74); }
+label.inline { grid-template-columns: 1fr auto; align-items: center; }
+input[type="range"] { width: 300px; max-width: 100%; }
+input[type="checkbox"] { transform: scale(1.1); }
+
+.shadowRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.puckWrap {
+  width: 120px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 8px 10px 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.70);
+}
+#shadowPuck {
+  width: 120px;
+  height: 120px;
+  border-radius: 999px;
+}
+.puckLabel {
+  font-size: 11px;
+  color: rgba(20, 25, 30, 0.55);
+  letter-spacing: 0.2px;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(20, 25, 30, 0.62);
+  line-height: 1.35;
+}
+
+
+.toolSubrow {
+  margin-top: 8px;
+  width: fit-content;
+  max-width: min(420px, calc(100vw - 28px));
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.68);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  pointer-events: auto;
+}
+.toolSubrow.hidden { display: none; }
+.toolInlineRange {
+  display: grid;
+  grid-template-columns: auto 180px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(20,25,30,0.78);
+}
+.toolInlineRange strong { font-weight: 700; color: rgba(20,25,30,0.92); }
+.toolInlineRange input[type="range"] { width: 180px; }
+@media (max-width: 720px) {
+  .toolInlineRange { grid-template-columns: 1fr; }
+  .toolInlineRange input[type="range"] { width: min(280px, 100%); }
+}
+
+
+/* Compact collapsible menu cards */
+.menuCard {
+  margin-top: 8px;
+  width: max-content;
+  max-width: min(560px, calc(100vw - 28px));
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding: 8px 10px;
+  pointer-events: auto;
+}
+.menuCard > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  font-weight: 650;
+  color: rgba(20,25,30,0.88);
+  outline: none;
+  user-select: none;
+}
+.menuCard > summary::-webkit-details-marker { display:none; }
+.menuCard > summary::after {
+  content: "▾";
+  margin-left: 8px;
+  color: rgba(20,25,30,0.50);
+}
+.menuCard:not([open]) > summary::after { content: "▸"; }
+.toolsMenu > .row { margin-top: 8px; }
+.toolsMenu > .toolSubrow { margin-top: 8px; }
+
+.subFold {
+  margin-top: 10px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 8px;
+}
+.subFold > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(20,25,30,0.78);
+}
+.subFold > summary::-webkit-details-marker { display:none; }
+.subFold > summary::before {
+  content: "▸";
+  margin-right: 6px;
+  color: rgba(20,25,30,0.45);
+}
+.subFold[open] > summary::before { content: "▾"; }
+
+
+
+#btnUndo, #btnRedo {
+  min-width: 34px;
+  padding-left: 8px;
+  padding-right: 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+
+/* ===== v26 premium menu polish ===== */
+.hud {
+  padding: 12px;
+}
+
+.menuCard,
+.panel {
+  border: 1px solid rgba(255,255,255,0.55);
+  background: linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,248,247,0.72));
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow:
+    0 12px 34px rgba(0,0,0,0.10),
+    0 1px 0 rgba(255,255,255,0.55) inset;
+}
+
+.menuCard > summary,
+.panel > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  padding: 2px 2px 6px 2px;
+  letter-spacing: 0.01em;
+  color: rgba(16,20,24,0.9);
+}
+
+.menuCard > summary::after,
+.panel > summary::after {
+  margin-left: auto;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(20,25,30,0.46);
+}
+
+.toolsMenu {
+  max-width: min(680px, calc(100vw - 24px));
+}
+
+.toolsMenu > .row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(54px, max-content));
+  gap: 6px;
+  padding: 0;
+  margin-top: 6px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.toolsMenu > .row .sep {
+  display: none;
+}
+
+button {
+  min-height: 34px;
+  border-radius: 11px;
+  border: 1px solid rgba(0,0,0,0.09);
+  background: rgba(255,255,255,0.88);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.8) inset,
+    0 1px 2px rgba(0,0,0,0.04);
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+button.primary {
+  background: linear-gradient(180deg, rgba(23,28,35,0.95), rgba(15,18,23,0.94));
+  border-color: rgba(0,0,0,0.18);
+  color: rgba(255,255,255,0.96);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.08) inset,
+    0 3px 10px rgba(0,0,0,0.18);
+}
+
+button#btnUndo,
+button#btnRedo {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 36px;
+  padding-inline: 8px;
+}
+
+@media (hover:hover) {
+  button:hover {
+    background: rgba(255,255,255,0.96);
+    border-color: rgba(0,0,0,0.14);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.85) inset,
+      0 2px 6px rgba(0,0,0,0.07);
+  }
+  button.primary:hover {
+    border-color: rgba(0,0,0,0.26);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,0.10) inset,
+      0 6px 14px rgba(0,0,0,0.22);
+  }
+}
+
+button:focus-visible,
+summary:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(59,130,246,0.5);
+  outline-offset: 2px;
+}
+
+.panel {
+  max-width: min(352px, calc(100vw - 24px));
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 195px);
+  margin-bottom: max(20px, calc(env(safe-area-inset-bottom) + 16px));
+  padding: 8px 10px 10px;
+}
+
+.panel > summary {
+  position: sticky;
+  top: -6px;
+  z-index: 2;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.82));
+  margin-inline: -2px;
+  padding-inline: 2px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.controls {
+  gap: 7px;
+  margin-top: 7px;
+}
+
+label {
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.58);
+  border: 1px solid rgba(0,0,0,0.04);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+}
+
+label.inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+.toolSubrow {
+  margin-top: 6px;
+  padding: 7px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.56);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.55) inset;
+}
+
+.toolInlineRange {
+  grid-template-columns: 1fr minmax(120px, 180px);
+  gap: 8px;
+  font-size: 11px;
+}
+
+.subFold {
+  margin-top: 8px;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  padding-top: 7px;
+}
+
+.hint {
+  background: rgba(255,255,255,0.42);
+  border: 1px solid rgba(0,0,0,0.035);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.hint > div + div {
+  margin-top: 4px;
+}
+
+
+/* ===== v27 layout: top tools/actions + left collapsible side panel ===== */
+.hud {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  padding: 10px 12px 12px 12px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  align-content: start;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.brand { display: none; }
+
+.topDock {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+.topDock > * { pointer-events: auto; }
+
+.leftRail {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+  align-self: start;
+  pointer-events: none;
+}
+.leftRail > * { pointer-events: auto; }
+
+.brandChip {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(16,20,24,0.95);
+  border: 1px solid rgba(255,255,255,0.6);
+  background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(248,248,247,0.74));
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.55) inset;
+}
+
+.toolsMenu,
+.actionsMenu {
+  margin-top: 0;
+  max-width: min(720px, calc(100vw - 24px));
+  padding: 8px 10px;
+}
+
+.toolsMenu > .row,
+.actionsMenu > .row {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
+.toolsMenu > .row button,
+.actionsMenu > .row button {
+  min-height: 34px;
+}
+
+.actionsMenu #btnClear,
+.actionsMenu #btnSaveMap,
+.actionsMenu #btnLoadMap,
+.actionsMenu #btnExport,
+.actionsMenu #btnPDF {
+  min-width: 52px;
+}
+
+.actionsMenu #btnUndo,
+.actionsMenu #btnRedo {
+  min-width: 36px;
+}
+
+.leftRail .panel {
+  margin-top: 0;
+  width: min(352px, calc(100vw - 24px));
+  max-width: min(352px, calc(100vw - 24px));
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 74px);
+}
+
+.propsBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.propsToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.propsToolbar button {
+  min-height: 32px;
+}
+
+.propsHint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(20,25,30,0.62);
+}
+
+.propsShelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+  min-height: 68px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.45);
+  -webkit-overflow-scrolling: touch;
+}
+.propsShelf.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.propsEmpty {
+  font-size: 11px;
+  color: rgba(20,25,30,0.55);
+}
+.propTile {
+  display: grid;
+  grid-template-rows: 40px auto;
+  gap: 4px;
+  align-items: start;
+  padding: 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.72);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+}
+.propTile img {
+  width: 100%;
+  height: 40px;
+  object-fit: contain;
+  image-rendering: auto;
+  border-radius: 6px;
+  background:
+    linear-gradient(45deg, rgba(0,0,0,0.03) 25%, transparent 25%) 0 0 / 8px 8px,
+    linear-gradient(-45deg, rgba(0,0,0,0.03) 25%, transparent 25%) 0 0 / 8px 8px,
+    rgba(255,255,255,0.65);
+}
+.propTile .name {
+  font-size: 10px;
+  line-height: 1.15;
+  color: rgba(20,25,30,0.75);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .hud {
+    grid-template-columns: minmax(260px, 1fr);
+  }
+  .leftRail {
+    grid-column: 1;
+  }
+  .topDock {
+    gap: 8px;
+  }
+  .brandChip {
+    height: 36px;
+    padding-inline: 12px;
+  }
+  .toolsMenu,
+  .actionsMenu {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+  .leftRail .panel {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 154px);
+  }
+}
+
+
+
+/* ===== v28 unified top menu + sliding side panel + asset tabs ===== */
+.hud {
+  position: fixed;
+  top: env(safe-area-inset-top);
+  left: env(safe-area-inset-left);
+  right: env(safe-area-inset-right);
+  bottom: env(safe-area-inset-bottom);
+  padding: 10px 12px 12px;
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  z-index: 10;
+  pointer-events: none;
+  align-content: start;
+  box-sizing: border-box;
+}
+.hud * { box-sizing: border-box; }
+
+.topDock {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+  pointer-events: none;
+}
+.topDock > * { pointer-events: auto; }
+
+.leftRail {
+  grid-column: 1;
+  min-width: 0;
+  align-self: start;
+  pointer-events: none;
+  overflow: visible;
+}
+.leftRail > * { pointer-events: auto; }
+
+.brandChip {
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: rgba(16,20,24,0.95);
+  border: 1px solid rgba(255,255,255,0.6);
+  background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(248,248,247,0.74));
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow: 0 12px 34px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.55) inset;
+}
+
+.coherentMenu {
+  max-width: min(980px, calc(100vw - 24px));
+  padding: 8px 10px 10px;
+}
+.coherentMenu > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.coherentMenu .menuGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.coherentMenu .menuGroup {
+  display: grid;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.52);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.55) inset;
+}
+.coherentMenu .groupLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(20,25,30,0.58);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.coherentMenu .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.coherentMenu button {
+  min-height: 34px;
+}
+.coherentMenu .toolSubrow {
+  margin-top: 0;
+}
+
+/* Side panel slide behavior */
+.sidePanel {
+  width: min(356px, calc(100vw - 24px));
+  max-width: min(356px, calc(100vw - 24px));
+  margin-top: 0;
+  overflow: visible;
+  transition: transform 180ms ease, opacity 140ms ease, box-shadow 180ms ease;
+  will-change: transform;
+}
+.leftRail .sidePanel:not([open]) {
+  transform: translateX(calc(-100% + 42px));
+  opacity: 0.98;
+}
+.leftRail .sidePanel > summary {
+  cursor: pointer;
+}
+.leftRail .sidePanel:not([open]) > summary {
+  border-radius: 12px;
+  padding-right: 10px;
+  margin: 0;
+  min-height: 36px;
+}
+.leftRail .sidePanel[open] > summary {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Scrollable panel body fixes bottom-reach issue */
+.sidePanel .panelBody {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 126px);
+  min-height: 0;
+}
+.sidePanel .tabPanelsWrap {
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+  padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 14px));
+}
+.sidePanel .tabPanelsWrap::-webkit-scrollbar {
+  width: 10px;
+}
+.sidePanel .tabPanelsWrap::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.panelTabBar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 2px;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.48);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.55) inset;
+}
+.tabBtn {
+  min-height: 32px;
+  font-size: 12px;
+}
+.tabBtn.primary {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 3px 10px rgba(0,0,0,0.16);
+}
+.panelPage {
+  display: grid;
+  gap: 8px;
+}
+.panelPage.hidden {
+  display: none !important;
+}
+.panelPage .controls {
+  margin-top: 0;
+}
+
+/* Assets tab */
+.assetsIntro,
+.assetsHint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(20,25,30,0.64);
+  padding: 0 2px;
+}
+.assetsHint {
+  margin-top: 4px;
+}
+#assetsPage .propsBlock {
+  display: grid;
+  gap: 8px;
+}
+#assetsPage .propsShelf {
+  max-height: min(44dvh, 320px);
+}
+.propTile {
+  position: relative;
+  cursor: grab;
+}
+.propTile:active {
+  cursor: grabbing;
+}
+.propTile.armed {
+  border-color: rgba(26, 79, 153, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(59,130,246,0.18) inset,
+    0 1px 0 rgba(255,255,255,0.6) inset,
+    0 2px 6px rgba(59,130,246,0.12);
+}
+.propTile .badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(17,24,39,0.86);
+  color: white;
+}
+.propTile.armed .badge { display: inline-flex; }
+
+@media (max-width: 900px) {
+  .hud {
+    grid-template-columns: minmax(260px, 1fr);
+    gap: 8px;
+  }
+  .brandChip {
+    height: 36px;
+    padding-inline: 12px;
+  }
+  .coherentMenu {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+  .sidePanel {
+    width: min(340px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+  }
+  .sidePanel .panelBody {
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 160px);
+  }
+  .leftRail .sidePanel:not([open]) {
+    transform: translateX(calc(-100% + 40px));
+  }
+}
+
+
+
+/* ===== v29 app-shell UI refactor (single top toolbar + sliding left drawer) ===== */
+.hud.appShellHud{
+  position: fixed;
+  inset: 0;
+  padding:
+    calc(env(safe-area-inset-top) + 10px)
+    calc(env(safe-area-inset-right) + 12px)
+    calc(env(safe-area-inset-bottom) + 12px)
+    calc(env(safe-area-inset-left) + 12px);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  pointer-events: none;
+  z-index: 20;
+  box-sizing: border-box;
+}
+.hud.appShellHud *{ box-sizing: border-box; }
+
+.appTopbar{
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: start;
+  gap: 10px;
+  pointer-events: none;
+}
+.appTopbar > *{ pointer-events: auto; }
+
+.topbarTitle{
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: .02em;
+  color: rgba(15,20,24,.95);
+  border: 1px solid rgba(255,255,255,.65);
+  background: linear-gradient(180deg, rgba(255,255,255,.86), rgba(246,246,245,.76));
+  box-shadow: 0 12px 30px rgba(15,20,24,.08), 0 1px 0 rgba(255,255,255,.6) inset;
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+}
+
+.toolbarShell{
+  min-height: 42px;
+  border-radius: 16px;
+  padding: 8px;
+  border: 1px solid rgba(255,255,255,.65);
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(246,246,245,.76));
+  box-shadow:
+    0 18px 38px rgba(15,20,24,.10),
+    0 1px 0 rgba(255,255,255,.65) inset;
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.toolbarGroup{
+  border-radius: 12px;
+  border: 1px solid rgba(17,24,39,.06);
+  background: rgba(255,255,255,.56);
+  box-shadow: 0 1px 0 rgba(255,255,255,.75) inset;
+  padding: 6px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.toolbarGroup.toolbarActions{ justify-self: end; }
+.toolbarLabel{
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: rgba(17,24,39,.55);
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+.toolbarRow{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.toolbarShell .toolbarRow button{
+  min-height: 34px;
+}
+.toolbarShell .toolSubrow{
+  margin-top: 0;
+  padding: 0 2px 2px;
+}
+
+.drawerToggleBtn{
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+.leftDrawer{
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  width: min(360px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  pointer-events: none;
+  position: relative;
+  transition: transform 180ms ease;
+  will-change: transform;
+}
+.leftDrawer > *{ pointer-events: auto; }
+
+.leftDrawer .drawerCard{
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.65);
+  background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(246,246,245,.76));
+  box-shadow:
+    0 20px 40px rgba(15,20,24,.10),
+    0 1px 0 rgba(255,255,255,.65) inset;
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+  padding: 10px;
+  display: grid;
+  grid-template-rows: auto auto minmax(0,1fr);
+  gap: 8px;
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 74px);
+}
+
+.drawerHeader{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.drawerTitle{
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: rgba(17,24,39,.92);
+}
+.drawerMiniBtn{
+  min-width: 34px;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.drawerBody{
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+}
+.drawerBody .tabPanelsWrap{
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 18px);
+}
+.drawerBody .tabPanelsWrap::-webkit-scrollbar{ width: 10px; }
+.drawerBody .tabPanelsWrap::-webkit-scrollbar-thumb{
+  background: rgba(17,24,39,.14);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+.leftDrawer .panelPage{
+  display: grid;
+  gap: 8px;
+}
+.leftDrawer .panelPage.hidden{ display:none !important; }
+.leftDrawer .controls{
+  margin: 0;
+  gap: 10px;
+}
+.leftDrawer .controls label{
+  margin: 0;
+}
+.leftDrawer .controls > label,
+.leftDrawer .controls > .shadowRow{
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(255,255,255,.38);
+  border: 1px solid rgba(17,24,39,.05);
+}
+.leftDrawer .shadowRow{
+  gap: 8px;
+  align-items: center;
+}
+.leftDrawer .subFold{
+  margin: 0;
+}
+.leftDrawer .subFold > summary{
+  border-radius: 10px;
+}
+
+/* Sliding behavior */
+.leftDrawer.collapsed{
+  transform: translateX(calc(-100% + 42px));
+}
+.leftDrawer.collapsed .drawerCard{
+  opacity: .985;
+}
+.leftDrawer.collapsed .drawerMiniBtn{
+  transform: rotate(180deg);
+}
+.drawerPeekTab{
+  position: absolute;
+  top: 74px;
+  right: -14px;
+  width: 30px;
+  height: 40px;
+  border-radius: 12px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  padding: 0;
+  box-shadow: 0 10px 22px rgba(15,20,24,.14);
+}
+.leftDrawer.collapsed .drawerPeekTab{
+  display: inline-flex;
+}
+
+/* Tabs and assets panel tweaks */
+.drawerTabs.panelTabBar{
+  margin: 0;
+}
+.assetsIntro, .assetsHint{
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(17,24,39,.66);
+  padding: 0 2px;
+}
+#assetsPage .propsBlock{
+  display:grid;
+  gap:8px;
+}
+#assetsPage .propsShelf{
+  max-height: min(42dvh, 340px);
+}
+.propTile{
+  cursor: grab;
+}
+.propTile:active{ cursor: grabbing; }
+
+/* Compact but coherent button sizing in toolbar + drawer */
+.appTopbar button, .leftDrawer button{
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px){
+  .appTopbar{
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title toggle"
+      "toolbar toolbar";
+    align-items: stretch;
+  }
+  .topbarTitle{ grid-area:title; justify-self:start; }
+  .toolbarShell{ grid-area:toolbar; grid-template-columns: 1fr; }
+  .drawerToggleBtn{ grid-area:toggle; align-self:start; }
+  .toolbarGroup.toolbarActions{ justify-self:stretch; }
+}
+@media (max-width: 760px){
+  .leftDrawer{
+    width: min(340px, calc(100vw - 20px));
+    max-width: calc(100vw - 20px);
+  }
+  .leftDrawer .drawerCard{
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 122px);
+  }
+  .leftDrawer.collapsed{
+    transform: translateX(calc(-100% + 38px));
+  }
+}
+
+
+/* v30 app-shell polish: single coherent top bar + no inspector button */
+.appTopbar{
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 8px 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(250,250,252,.9));
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 10px 28px rgba(15,23,42,.08), 0 2px 6px rgba(15,23,42,.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.appTopbar .topbarTitle{
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(17,24,39,.92);
+  font-weight: 800;
+  pointer-events: none;
+}
+.appTopbar .toolbarShell{
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0 0 0 154px; /* reserve title lane */
+  margin: 0;
+  min-width: 0;
+}
+.appTopbar .toolbarGroups{
+  gap: 8px;
+}
+.appTopbar .toolbarGroup{
+  background: rgba(255,255,255,.62);
+  border-color: rgba(17,24,39,.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+}
+.appTopbar .drawerToggleBtn{ display: none !important; }
+
+@media (max-width: 980px){
+  .appTopbar{
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    padding: 8px;
+  }
+  .appTopbar .topbarTitle{
+    position: static;
+    transform: none;
+    margin: 0 0 6px 4px;
+    pointer-events: auto;
+  }
+  .appTopbar .toolbarShell{
+    padding-left: 0;
+  }
+}
+
+/* Ensure drawer content can scroll fully to bottom */
+.leftDrawer .tabPanelsWrap{
+  padding-bottom: max(28px, calc(env(safe-area-inset-bottom) + 22px));
+}
+
+/* Assets tab toolbar wraps gracefully */
+.propsToolbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.propsToolbar .ghostBtn{
+  flex: 0 0 auto;
+}
+
+
+
+/* ===== v30a topbar aligned to the right of left drawer (avoid overlap) ===== */
+:root{
+  --ds-left-drawer-width: 360px;
+  --ds-ui-gap: 12px;
+}
+
+.hud.appShellHud{
+  align-content: start;
+}
+
+/* Keep the top bar offset so it starts to the right of the sidebar */
+.appTopbar{
+  width: min(
+    calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 24px - var(--ds-left-drawer-width) - var(--ds-ui-gap)),
+    1400px
+  );
+  margin-left: calc(var(--ds-left-drawer-width) + var(--ds-ui-gap));
+  justify-self: start;
+}
+
+/* Sidebar width should match the offset variable */
+.leftDrawer{
+  width: min(var(--ds-left-drawer-width), calc(100vw - 24px));
+}
+
+/* When the drawer is collapsed, pull the topbar back to the left edge */
+.hud.appShellHud.drawer-collapsed .appTopbar{
+  width: min(calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 24px), 1600px);
+  margin-left: 0;
+}
+
+/* If the drawer is collapsed, keep a small peek area */
+.hud.appShellHud.drawer-collapsed .leftDrawer.collapsed{
+  transform: translateX(calc(-100% + 40px));
+}
+
+/* Responsive: stack/left align naturally on smaller screens */
+@media (max-width: 1200px){
+  :root{ --ds-left-drawer-width: 340px; }
+  .appTopbar{
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 24px);
+    margin-left: 0;
+  }
+}
+@media (max-width: 760px){
+  .appTopbar{
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 20px);
+    margin-left: 0;
+  }
+}
+
+
+/* v31: centered title + right-aligned toolbar + asset note */
+.appTopbar {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.appTopbar .topbarTitle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1;
+}
+.appTopbar .toolbarShell {
+  position: relative;
+  z-index: 2;
+  margin-left: auto;
+  width: auto;
+  max-width: min(980px, calc(100% - 180px));
+  justify-content: flex-end;
+}
+.appTopbar .toolbarShell .toolbarGroup:first-child {
+  margin-left: auto;
+}
+.assetDefaultNote {
+  margin-top: 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  background: rgba(255,255,255,0.55);
+}
+.assetDefaultNote code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #334155;
+  background: rgba(15,23,42,0.05);
+  padding: 1px 4px;
+  border-radius: 5px;
+}
+@media (max-width: 1100px) {
+  .appTopbar .topbarTitle { display: none; }
+  .appTopbar .toolbarShell { max-width: calc(100% - 24px); }
+}
+
+
+/* v31b: right vertical toolbar + centered title */
+:root{ --ds-toolbar-right-width: 428px; }
+
+.appTopbar{
+  position: fixed !important;
+  top: calc(10px + env(safe-area-inset-top)) !important;
+  left: calc(12px + env(safe-area-inset-left)) !important;
+  right: calc(12px + env(safe-area-inset-right)) !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  pointer-events: none;
+  z-index: 60;
+}
+.appTopbar .topbarTitle{
+  position: absolute !important;
+  top: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  height: 44px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.90);
+  box-shadow: 0 8px 28px rgba(15,23,42,0.10), 0 1px 0 rgba(255,255,255,0.7) inset;
+  color: #111827 !important;
+  font-weight: 700;
+  opacity: 1 !important;
+  pointer-events: none !important;
+  z-index: 3;
+  white-space: nowrap;
+}
+.appTopbar .toolbarShell{
+  position: absolute !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: auto !important;
+  width: min(var(--ds-toolbar-right-width), calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))) !important;
+  max-width: min(var(--ds-toolbar-right-width), calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right))) !important;
+  margin: 0 !important;
+  padding: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  border-radius: 16px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background: rgba(255,255,255,0.88);
+  box-shadow: 0 10px 30px rgba(15,23,42,0.09), 0 1px 0 rgba(255,255,255,0.65) inset;
+  backdrop-filter: blur(12px);
+  pointer-events: auto !important;
+  z-index: 4;
+}
+.appTopbar .toolbarGroup{
+  width: 100%;
+  margin: 0 !important;
+  border-radius: 12px;
+}
+.appTopbar .toolbarGroup + .toolbarGroup{ margin-top: 0 !important; }
+.appTopbar .toolbarRow{ display:flex; flex-wrap:wrap; gap:8px; }
+.appTopbar .toolbarShell .toolbarGroup:first-child{ margin-left: 0 !important; }
+
+@media (max-width: 1100px){
+  .appTopbar .topbarTitle{
+    left: 18px !important;
+    transform: none !important;
+  }
+}
+@media (max-width: 760px){
+  .appTopbar .topbarTitle{ display: none !important; }
+  .appTopbar .toolbarShell{
+    width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+    max-width: calc(100vw - 16px - env(safe-area-inset-left) - env(safe-area-inset-right)) !important;
+  }
+}
+
+
+/* ===== v31c: center title + right-side vertical tools/actions toolbar ===== */
+@media (min-width: 901px){
+  .appTopbar{
+    height: 92px !important;
+    left: calc(12px + env(safe-area-inset-left)) !important;
+    right: calc(12px + env(safe-area-inset-right)) !important;
+  }
+
+  .appTopbar .topbarTitle{
+    position: absolute !important;
+    left: 50% !important;
+    top: 12px !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+    min-width: 220px !important;
+    max-width: 42vw !important;
+    padding: 12px 18px !important;
+    text-align: center !important;
+    z-index: 20 !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    background: rgba(255,255,255,.88) !important;
+    border: 1px solid rgba(17,24,39,.08) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 8px 24px rgba(15,23,42,.08), 0 1px 0 rgba(255,255,255,.65) inset !important;
+    backdrop-filter: blur(10px) saturate(1.05) !important;
+    white-space: nowrap !important;
+  }
+
+  .appTopbar .toolbarShell{
+    position: absolute !important;
+    right: 0 !important;
+    top: 4px !important;
+    left: auto !important;
+    transform: none !important;
+    width: min(400px, 40vw) !important;
+    max-width: min(400px, 40vw) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    z-index: 30 !important;
+    margin: 0 !important;
+    pointer-events: auto !important;
+  }
+
+  .appTopbar .toolbarGroup{
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .appTopbar .toolbarShell .toolbarGroup:first-child{
+    margin-left: 0 !important;
+  }
+
+  .appTopbar .toolbarRow{
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+  }
+
+  .appTopbar .toolbarTools .toolbarRow button,
+  .appTopbar .toolbarActions .toolbarRow button{
+    flex: 0 0 auto !important;
+  }
+
+  /* leave room so title doesn't sit behind toolbar */
+  .appTopbar .topbarTitle{
+    max-width: calc(100vw - 520px) !important;
+  }
+}
+
+@media (max-width: 900px){
+  .appTopbar{
+    height: auto !important;
+  }
+  .appTopbar .topbarTitle{
+    left: 12px !important;
+    top: 8px !important;
+    transform: none !important;
+    max-width: calc(100vw - 24px) !important;
+  }
+  .appTopbar .toolbarShell{
+    position: relative !important;
+    right: auto !important;
+    top: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    margin-top: 56px !important;
+  }
+}
+
+/* ===== v31d: menu layout fix (no overlap, true centered title, right vertical toolbar) ===== */
+:root{
+  --ds-right-toolbar-width-fixed: clamp(320px, 34vw, 420px);
+}
+
+/* Put the topbar back in the HUD grid flow so the sidebar doesn't overlap it */
+.hud.appShellHud{
+  grid-template-columns: minmax(300px, 360px) 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  align-content: start;
+}
+
+/* Desktop / large tablet */
+@media (min-width: 901px){
+  .appTopbar{
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: var(--ds-right-toolbar-width-fixed) minmax(0,1fr) var(--ds-right-toolbar-width-fixed) !important;
+    align-items: start !important;
+    gap: 10px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none !important;
+    z-index: 60 !important;
+    min-height: 0 !important;
+  }
+
+  /* Left spacer mirrors right toolbar width so the title stays truly centered */
+  .appTopbar::before{
+    content: "";
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 1px;
+  }
+
+  .appTopbar .topbarTitle{
+    position: relative !important;
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    justify-self: center !important;
+    align-self: start !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    width: auto !important;
+    min-width: 220px !important;
+    max-width: min(40vw, calc(100% - 8px)) !important;
+    margin: 8px 0 0 !important;
+    padding: 12px 18px !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    pointer-events: none !important;
+    z-index: 20 !important;
+  }
+
+  .appTopbar .toolbarShell{
+    position: relative !important;
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    align-self: start !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    pointer-events: auto !important;
+    z-index: 30 !important;
+  }
+
+  .appTopbar .toolbarGroup{
+    width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .appTopbar .toolbarRow{
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+  }
+
+  /* Give the title/toolbar row a stable minimum height to avoid jitter */
+  .hud.appShellHud{
+    grid-template-rows: minmax(96px, auto) 1fr;
+  }
+
+  /* Align sidebar top edge with the tools/actions menu row */
+  .leftDrawer{
+    grid-row: 1 / span 2 !important;
+    margin-top: 0 !important;
+    align-self: start !important;
+  }
+
+  /* Sidebar is no longer below the toolbar row, so let it use full height */
+  .leftDrawer .drawerCard{
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px) !important;
+  }
+}
+
+/* Medium screens: keep title visible but stack naturally */
+@media (max-width: 900px){
+  .appTopbar{
+    position: relative !important;
+    inset: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    pointer-events: none !important;
+    height: auto !important;
+  }
+  .appTopbar::before{ display: none !important; }
+  .appTopbar .topbarTitle{
+    position: relative !important;
+    grid-column: 1 !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    justify-self: start !important;
+    margin: 0 !important;
+    max-width: calc(100vw - 24px) !important;
+    pointer-events: none !important;
+  }
+  .appTopbar .toolbarShell{
+    position: relative !important;
+    grid-column: 1 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    transform: none !important;
+    pointer-events: auto !important;
+  }
+  .hud.appShellHud{
+    grid-template-rows: auto 1fr !important;
+  }
+}
+
+/* Remove the extra inspector/peek tab (user asked for no inspector button) */
+#drawerPeekTab,
+.leftDrawer .drawerPeekTab,
+.leftDrawer.collapsed .drawerPeekTab{
+  display: none !important;
+}
+
+/* Slightly reduce toolbar width on tighter desktops so it doesn't dominate */
+@media (min-width: 901px) and (max-width: 1180px){
+  :root{ --ds-right-toolbar-width-fixed: clamp(300px, 36vw, 360px); }
+}
+
+
+/* v31g: asset shelf drag reliability + avoid native image drag behavior */
+.propTile img,
+.propTile .name,
+.propTile .badge{
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+
+/* ===== PDF export modal ===== */
+.hidden { display: none !important; }
+
+.pdfModalOverlay{
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: auto;
+}
+.pdfModalScrim{
+  position: absolute;
+  inset: 0;
+  background: rgba(9,12,16,0.28);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.pdfModalCard{
+  position: absolute;
+  top: max(16px, calc(env(safe-area-inset-top) + 10px));
+  right: max(16px, calc(env(safe-area-inset-right) + 10px));
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr) auto;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.6);
+  background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(247,248,250,0.78));
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.7) inset;
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+.pdfModalHeader{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+}
+.pdfModalEyebrow{
+  font-size:11px; letter-spacing:.14em; text-transform:uppercase; color: rgba(20,25,30,0.48); font-weight:700;
+}
+.pdfModalHeader h2{
+  margin:2px 0 0 0; font-size:18px; line-height:1.1; color: rgba(16,20,24,0.95);
+}
+.pdfModalBody{
+  min-height:0; overflow:auto; display:grid; gap:10px; padding-right:2px;
+}
+.pdfSectionCard{
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.05);
+  background: rgba(255,255,255,0.55);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset;
+  padding: 10px;
+  display:grid; gap:8px;
+}
+.pdfSectionTitle{
+  font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(20,25,30,0.62);
+}
+.pdfFormGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pdfFormGrid > label{
+  margin:0;
+}
+.pdfFormGrid label select,
+.pdfFormGrid label input[type=number],
+.pdfFormGrid label input[type=text]{
+  width:100%;
+  min-height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,0.09);
+  background: rgba(255,255,255,0.9);
+  color: rgba(20,25,30,0.9);
+  padding: 6px 9px;
+  box-sizing: border-box;
+}
+.pdfFormGrid label select{
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(20,25,30,0.45) 50%), linear-gradient(135deg, rgba(20,25,30,0.45) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% - 2px), calc(100% - 11px) calc(50% - 2px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 28px;
+}
+.pdfFieldWide{ grid-column: 1 / -1; }
+.pdfRangeValue{
+  font-size: 11px; color: rgba(20,25,30,0.6); display:flex; justify-content:flex-end; margin-top:2px;
+}
+.pdfRangeValue span{ color: rgba(20,25,30,0.88); font-weight: 700; margin-right: 4px; }
+.pdfHint{
+  font-size: 11px; line-height: 1.35; color: rgba(20,25,30,0.62);
+  padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,0.42); border:1px solid rgba(0,0,0,0.03);
+}
+.pdfExportSummary{
+  font-size: 12px; line-height: 1.35; color: rgba(20,25,30,0.72);
+  border-radius: 12px; padding: 8px 10px; background: rgba(255,255,255,0.46); border:1px solid rgba(0,0,0,0.04);
+}
+.pdfModalFooter{
+  display:flex; justify-content:flex-end; gap:8px;
+  padding-top: 2px;
+}
+#pdfTiledSection.hidden{ display:none !important; }
+
+@media (max-width: 760px){
+  .pdfModalCard{
+    left: 12px;
+    right: 12px;
+    width: auto;
+    top: max(12px, calc(env(safe-area-inset-top) + 8px));
+    max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px);
+  }
+  .pdfFormGrid{ grid-template-columns: 1fr; }
+}
+
+
+.textEditOverlay {
+  position: fixed;
+  z-index: 40;
+  min-width: 140px;
+  max-width: min(420px, calc(100vw - 24px));
+  pointer-events: auto;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.12);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.textEditOverlay.hidden { display: none; }
+.textCanvasEditor {
+  display: block;
+  width: 100%;
+  min-width: 124px;
+  max-width: 100%;
+  min-height: 28px;
+  resize: none;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.98);
+  padding: 6px 8px;
+  color: rgba(20,25,30,0.92);
+  font: 14px/1.25 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  outline: none;
+}
+.textCanvasEditor:focus { border-color: rgba(70,110,255,0.55); box-shadow: 0 0 0 3px rgba(70,110,255,0.12); }
+.textCanvasEditorHint {
+  margin-top: 5px;
+  font-size: 10px;
+  color: rgba(20,25,30,0.56);
+  letter-spacing: 0.2px;
+}
+
+
+.fontLoadRow{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items:center;
+}
+.fontLoadRow input[type=text]{ min-width: 0; }
+
+.fontStatus{ min-height:16px; margin-top:6px; font-size:12px; color:rgba(255,255,255,0.72); }
+.fontStatus[data-state="loading"]{ color:#dbeafe; }
+.fontStatus[data-state="ok"]{ color:#bbf7d0; }
+.fontStatus[data-state="error"]{ color:#fecaca; }
+.fontRecent{ display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.fontRecentHint{ font-size:11px; opacity:.65; }
+.fontChip{ appearance:none; border:1px solid rgba(255,255,255,0.18); background:rgba(255,255,255,0.05); color:inherit; border-radius:999px; padding:4px 8px; font:inherit; font-size:11px; cursor:pointer; }
+.fontChip:hover{ background:rgba(255,255,255,0.10); }
+
+
+
+/* Developer donation button (small floating bottom-right) */
+.donateBanner {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  margin: 0;
+  z-index: 30;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: auto;
+}
+.donateBannerLink {
+  appearance: none;
+  border: 1px solid rgba(31,41,51,0.16);
+  background: rgba(255,255,255,0.94);
+  color: #1f2933;
+  border-radius: 999px;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  backdrop-filter: blur(4px);
+}
+.donateBannerLink:hover { background: #fff; }
+
+/* Alpha banner (top, full-width, closable) */
+.alphaBanner {
+  position: fixed;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(31,41,51,0.18);
+  background: rgba(255, 234, 179, 0.96);
+  color: #2d2412;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+  pointer-events: auto;
+  z-index: 80;
+  isolation: isolate; /* ensure banner paints above title pill */
+}
+.alphaBanner[hidden] { display: none !important; }
+.alphaBannerText { font-size: 13px; line-height: 1.35; }
+.alphaBannerActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.alphaBannerClose {
+  appearance: none;
+  border: 1px solid rgba(31,41,51,0.22);
+  background: rgba(255,255,255,0.9);
+  color: #1f2933;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.alphaBannerClose:hover { background: #fff; }
+.alphaBannerClose { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; }
+@media (max-width: 900px) {
+  .alphaBanner { flex-direction: column; align-items: stretch; }
+  .alphaBannerActions { justify-content: flex-end; }
+}
+@media (max-width: 640px) {
+  .donateBanner { right: 10px; bottom: 10px; }
+  .donateBannerLink { font-size: 11px; padding: 6px 10px; }
+  .alphaBanner { left: 8px; right: 8px; top: 68px; }
+}
