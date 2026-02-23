@@ -20,7 +20,10 @@
 
       <div class="toolbarShell" role="group" aria-label="Main toolbar">
         <div class="toolbarGroup toolbarTools" aria-label="Tools">
-          <div class="toolbarHeader"><div class="toolbarLabel">Tools</div><button id="btnToggleToolsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" aria-controls="toolbarToolsRow" title="Collapse tools menu">⟨</button></div>
+          <div class="toolbarHeader">
+            <div class="toolbarLabel">Tools</div>
+            <button id="btnToggleToolsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" title="Hide tools">⟩</button>
+          </div>
           <div id="toolbarToolsRow" class="toolbarRow">
             <button class="tool" data-tool="select" title="Select/move/rotate props">Select</button>
             <button class="tool primary" data-tool="space" title="Rectangle (drag)">Rectangle</button>
@@ -39,7 +42,10 @@
         </div>
 
         <div class="toolbarGroup toolbarActions" aria-label="Actions">
-          <div class="toolbarHeader"><div class="toolbarLabel">Actions</div><button id="btnToggleActionsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" aria-controls="toolbarActionsRow" title="Collapse actions menu">⟨</button></div>
+          <div class="toolbarHeader">
+            <div class="toolbarLabel">Actions</div>
+            <button id="btnToggleActionsMenu" class="toolbarCollapseBtn" type="button" aria-expanded="true" title="Hide actions">⟩</button>
+          </div>
           <div id="toolbarActionsRow" class="toolbarRow">
             <button id="btnUndo" title="Undo">⟲</button>
             <button id="btnRedo" title="Redo">⟳</button>
