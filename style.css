@@ -36,7 +36,7 @@ canvas { display: block; touch-action: none; }
   gap: 6px;
   padding: 8px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.72);
+  background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
