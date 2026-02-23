@@ -1985,3 +1985,62 @@ input[type="range"] {
   .donateBannerLink { font-size: 11px; padding: 6px 10px; }
   .alphaBanner { left: 8px; right: 8px; top: 68px; }
 }
+
+/* v32: one-column right rail for Tools + Actions */
+@media (min-width: 901px){
+  :root{
+    --ds-right-toolbar-width-fixed: clamp(180px, 18vw, 220px);
+  }
+
+  .appTopbar .toolbarShell{
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .appTopbar .toolbarGroup{
+    padding: 10px !important;
+    border-radius: 18px !important;
+  }
+
+  .appTopbar .toolbarLabel{
+    margin-bottom: 8px !important;
+  }
+
+  /* Force a single vertical column in each section */
+  .appTopbar .toolbarRow{
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 8px !important;
+  }
+
+  /* Full-width stacked buttons */
+  .appTopbar .toolbarTools .toolbarRow button,
+  .appTopbar .toolbarActions .toolbarRow button,
+  .appTopbar .toolbarShell .toolbarRow button{
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 0 0 auto !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    min-height: 38px !important;
+    padding: 0 12px !important;
+  }
+
+  /* Keep the title centered while accounting for narrower rail */
+  .appTopbar .topbarTitle{
+    max-width: min(44vw, calc(100% - 8px)) !important;
+  }
+}
+
+/* On shorter screens, allow the right rail to scroll instead of overlapping the canvas */
+@media (min-width: 901px) and (max-height: 780px){
+  .appTopbar .toolbarShell{
+    max-height: calc(100dvh - env(safe-area-inset-top) - 18px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+}
