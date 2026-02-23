@@ -97,6 +97,10 @@ const btnUnder = document.getElementById("btnUnder")
 const btnFinish = document.getElementById("btnFinish")
 const btnUndo = document.getElementById("btnUndo")
 const btnRedo = document.getElementById("btnRedo")
+const btnToggleToolsMenu = document.getElementById("btnToggleToolsMenu")
+const btnToggleActionsMenu = document.getElementById("btnToggleActionsMenu")
+const toolbarToolsGroup = document.querySelector(".toolbarGroup.toolbarTools")
+const toolbarActionsGroup = document.querySelector(".toolbarGroup.toolbarActions")
 const btnClear = document.getElementById("btnClear")
 const btnSaveMap = document.getElementById("btnSaveMap")
 const btnLoadMap = document.getElementById("btnLoadMap")
@@ -178,31 +182,6 @@ const googleFontFamilyInput = document.getElementById("googleFontFamilyInput")
 const btnLoadGoogleFont = document.getElementById("btnLoadGoogleFont")
 const googleFontStatus = document.getElementById("googleFontStatus")
 const googleFontRecent = document.getElementById("googleFontRecent")
-
-const btnToggleToolsMenu = document.getElementById("btnToggleToolsMenu")
-const btnToggleActionsMenu = document.getElementById("btnToggleActionsMenu")
-const toolbarToolsGroup = document.querySelector(".toolbarGroup.toolbarTools")
-const toolbarActionsGroup = document.querySelector(".toolbarGroup.toolbarActions")
-
-function setToolbarGroupCollapsed(groupEl, btnEl, collapsed){
-  if (!groupEl || !btnEl) return
-  groupEl.classList.toggle("collapsed-right", !!collapsed)
-  btnEl.setAttribute("aria-expanded", collapsed ? "false" : "true")
-  btnEl.textContent = collapsed ? "⟩" : "⟨"
-}
-function wireToolbarGroupCollapse(groupEl, btnEl, storageKey){
-  if (!groupEl || !btnEl) return
-  let collapsed = false
-  try { collapsed = localStorage.getItem(storageKey) === "1" } catch {}
-  setToolbarGroupCollapsed(groupEl, btnEl, collapsed)
-  btnEl.addEventListener("click", ()=>{
-    const next = !groupEl.classList.contains("collapsed-right")
-    setToolbarGroupCollapsed(groupEl, btnEl, next)
-    try { localStorage.setItem(storageKey, next ? "1" : "0") } catch {}
-  })
-}
-wireToolbarGroupCollapse(toolbarToolsGroup, btnToggleToolsMenu, "ds_toolbar_tools_collapsed")
-wireToolbarGroupCollapse(toolbarActionsGroup, btnToggleActionsMenu, "ds_toolbar_actions_collapsed")
 
 // Shadow puck
 const puck = document.getElementById("shadowPuck")
@@ -3230,3 +3209,38 @@ function loop(){
   requestAnimationFrame(loop)
 }
 loop()
+
+// ===== Top-right Tools/Actions slide-out (like the left drawer) =====
+(() => {
+  const toolsGroup = document.querySelector('.toolbarGroup.toolbarTools')
+  const actionsGroup = document.querySelector('.toolbarGroup.toolbarActions')
+  const btnTools = document.getElementById('btnToggleToolsMenu')
+  const btnActions = document.getElementById('btnToggleActionsMenu')
+
+  const KEY_TOOLS = 'ds.topbar.toolsSlidOut'
+  const KEY_ACTIONS = 'ds.topbar.actionsSlidOut'
+
+  function setSlidOut(groupEl, btnEl, slidOut){
+    if (!groupEl || !btnEl) return
+    groupEl.classList.toggle('slidOutRight', !!slidOut)
+    btnEl.setAttribute('aria-expanded', slidOut ? 'false' : 'true')
+    // When open, the arrow points right (hide). When hidden, arrow points left (show).
+    btnEl.textContent = slidOut ? '⟨' : '⟩'
+    btnEl.title = slidOut ? 'Show menu' : 'Hide menu'
+  }
+
+  function wire(groupEl, btnEl, storageKey){
+    if (!groupEl || !btnEl) return
+    let slid = false
+    try { slid = localStorage.getItem(storageKey) === '1' } catch (_) {}
+    setSlidOut(groupEl, btnEl, slid)
+    btnEl.addEventListener('click', () => {
+      const next = !groupEl.classList.contains('slidOutRight')
+      setSlidOut(groupEl, btnEl, next)
+      try { localStorage.setItem(storageKey, next ? '1' : '0') } catch (_) {}
+    })
+  }
+
+  wire(toolsGroup, btnTools, KEY_TOOLS)
+  wire(actionsGroup, btnActions, KEY_ACTIONS)
+})();
