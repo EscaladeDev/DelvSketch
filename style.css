@@ -2132,3 +2132,24 @@ input[type="range"] {
     bottom: calc(env(safe-area-inset-bottom) + 52px) !important;
   }
 }
+
+
+/* v33c: corrected bottom-centered title pill alignment */
+:root{ --ds-bottom-hud-offset: calc(env(safe-area-inset-bottom) + 14px); }
+.appTopbar .topbarTitle{
+  position: fixed !important;
+  top: auto !important;
+  bottom: var(--ds-bottom-hud-offset) !important;
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  z-index: 35 !important;
+  margin: 0 !important;
+  pointer-events: auto;
+}
+.donateBanner{ bottom: var(--ds-bottom-hud-offset) !important; }
+@media (max-width: 720px){
+  .appTopbar .topbarTitle{
+    bottom: calc(var(--ds-bottom-hud-offset) + 44px) !important;
+  }
+}
