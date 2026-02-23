@@ -17,7 +17,7 @@ It’s designed for fast iteration while planning encounters, adventures, or lev
 
 This app is currently in active alpha testing.
 
-Features and behavior may change, and future versions may not be compatible with older saved map files.
+Features and behavior may change, and map files may not be compatible with future versions.
 
 Support
 
