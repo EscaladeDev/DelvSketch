@@ -1,51 +1,30 @@
-# Dungeon Sketch Premium Rebuild (v12)
+Dungeon Sketch (Alpha)
 
-This build switches the renderer to an **authoritative world-space compile cache** so:
-- hatching does not change when panning/zooming
-- walls are drawn outside the interior volume
-- shadows are smooth and stable
-- all rendered layers derive from one compiled world mask (no mixed screen/world extraction)
+Dungeon Sketch is a lightweight browser-based map sketching tool for quickly blocking out dungeon layouts, rooms, corridors, and labels.
 
-## Features
-- Space (rect) tool with snapping
-- Path / Free path corridor drawing
-- Parametric polygon tool with move/resize/rotate
-- Under toggle for subtractive shapes
-- Smooth interior shadow with direction puck
-- Cartoony exterior hatching (stable)
-- Exterior walls
-- PNG export
-- Multipage PDF export (raster tiles via jsPDF)
+It’s designed for fast iteration while planning encounters, adventures, or level ideas.
 
-## iPad / Browser test
-1. Upload the folder to GitHub Pages (or any static host).
-2. Open in Safari on iPad.
-3. Use:
-   - one finger draw
-   - two-finger pan
-   - pinch zoom
-   - panel controls for style
-4. PDF export requires internet access to load jsPDF (CDN).
+Features
+	•	Draw shapes and paths for dungeon layouts
+	•	Adjustable style/render settings (grid, wall width, colors, shadows)
+	•	Text labels with on-canvas editing
+	•	Font size / color controls
+	•	Google Fonts support for text labels
+	•	Export options (PNG / PDF)
+	•	Save / load map files
 
-## Notes
-- PDF export is **multipage raster** (high-res) in this build.
-- A true vector PDF exporter is still possible on top of a full polygon boolean kernel later.
+Alpha Warning
 
+This app is currently in active alpha testing.
 
-## v14 patch
-- Corner-aware interior shadows (combines axis + diagonal directional bands to fill shadow gaps at inside corners).
+Features and behavior may change, and future versions may not be compatible with older saved map files.
 
-## v15 patch
-- Shadow now uses directional line-erosion banding for angled corner shadows and uniform shading (constant opacity inside the shadow band).
+Support
 
-## v16 patch
-- Replaced shadow generation with outside-mask ray-union banding (corner-aware angled wedges, uniform fill, and guaranteed wall contact).
+If you find the tool useful, there is an in-app “Tip the developer” button.
 
-## v17 patch
-- World-anchored grid phase for better grid/map alignment while panning/zooming.
-- Added Save/Load map JSON options (toolbar) including camera state.
+## License
 
-
-## v21 patch
-- Erase tool now uses snapped drag-box behavior like Space (sub-grid aware).
-- Space operations are applied in insertion order during mask build so drawing after erase can restore areas.
+This project is licensed under a **custom proprietary license**.  
+Editing, redistribution, and commercial use are **not permitted without prior written permission**.
+See the `LICENSE` file for details.
