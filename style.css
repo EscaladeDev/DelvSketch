@@ -1989,7 +1989,7 @@ input[type="range"] {
 /* v32: one-column right rail for Tools + Actions */
 @media (min-width: 901px){
   :root{
-    --ds-right-toolbar-width-fixed: clamp(180px, 18vw, 220px);
+    --ds-right-toolbar-width-fixed: clamp(150px, 14vw, 180px);
   }
 
   .appTopbar .toolbarShell{
@@ -2027,7 +2027,7 @@ input[type="range"] {
     text-align: left !important;
     justify-content: flex-start !important;
     min-height: 38px !important;
-    padding: 0 12px !important;
+    padding: 0 10px !important;
   }
 
   /* Keep the title centered while accounting for narrower rail */
