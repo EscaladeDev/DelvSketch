@@ -1,10 +1,10 @@
-Dungeon Sketch (Alpha)
+# Dungeon Sketch (Alpha)
 
 Dungeon Sketch is a lightweight browser-based map sketching tool for quickly blocking out dungeon layouts, rooms, corridors, and labels.
 
 It’s designed for fast iteration while planning encounters, adventures, or level ideas.
 
-Features
+## Features
 	•	Draw shapes and paths for dungeon layouts
 	•	Adjustable style/render settings (grid, wall width, colors, shadows)
 	•	Text labels with on-canvas editing
@@ -13,7 +13,7 @@ Features
 	•	Export options (PNG / PDF)
 	•	Save / load map files
 
-Alpha Warning
+## Alpha Warning
 
 This app is currently in active alpha testing.
 
