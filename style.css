@@ -2023,3 +2023,174 @@ input[type="range"] {
 
 /* donation button wrapper shouldn't render a square */
 .donateBanner{ background: transparent !important; border: 0 !important; box-shadow: none !important; }
+
+/* ===== vFix: topbar slide-right menus + theme toggle + polished dark mode ===== */
+.appTopbar,
+.appTopbar .toolbarShell,
+.appTopbar .toolbarGroup {
+  overflow: visible !important;
+}
+
+.toolbarGroup .toolbarHeader{
+  position: relative;
+  z-index: 2;
+}
+
+.toolbarGroup{
+  position: relative;
+}
+
+/* slide the CONTENT, not the header, so the toggle remains visible/clickable */
+.toolbarGroup .toolbarRow,
+.toolbarGroup .toolSubrow{
+  transition: transform 220ms ease, opacity 180ms ease;
+  transform: translateX(0);
+  opacity: 1;
+  will-change: transform;
+}
+
+.toolbarGroup.slidOutRight .toolbarRow,
+.toolbarGroup.slidOutRight .toolSubrow{
+  transform: translateX(calc(100% + 12px));
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toolbarCollapseBtn{
+  min-width: 34px;
+  min-height: 34px;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 5;
+  position: relative;
+}
+
+.toolbarGroup.slidOutRight{
+  box-shadow: 0 8px 22px rgba(0,0,0,0.16);
+}
+
+/* Keep enough width so the header/chip handle remains visible while content is slid */
+.toolbarGroup.toolbarTools{ min-width: 196px; }
+.toolbarGroup.toolbarActions{ min-width: 250px; }
+
+.toolbarGroup.slidOutRight .toolbarHeader{
+  justify-content: flex-end;
+}
+.toolbarGroup.slidOutRight .toolbarLabel{
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Theme button styling */
+#btnThemeToggle{
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+/* Light theme tokens */
+:root{
+  --ui-bg: #f6f5f1;
+  --ui-panel: rgba(255,255,255,0.88);
+  --ui-panel-2: rgba(255,255,255,0.96);
+  --ui-border: rgba(39,49,66,0.14);
+  --ui-text: #202738;
+  --ui-muted: #59627a;
+  --ui-button: #ffffff;
+  --ui-button-hover: #f0f3fa;
+  --ui-button-active: #dfe8ff;
+  --ui-shadow: 0 10px 28px rgba(19, 29, 51, 0.12);
+}
+
+/* Dark theme overrides */
+html[data-theme="dark"]{
+  --ui-bg: #141824;
+  --ui-panel: rgba(28,33,46,0.92);
+  --ui-panel-2: rgba(34,40,57,0.96);
+  --ui-border: rgba(199,214,255,0.12);
+  --ui-text: #eef3ff;
+  --ui-muted: #b4bfd8;
+  --ui-button: #262d3f;
+  --ui-button-hover: #313a50;
+  --ui-button-active: #435178;
+  --ui-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+
+html[data-theme="dark"] body{
+  background: var(--ui-bg);
+  color: var(--ui-text);
+}
+
+html[data-theme="dark"] .drawerCard,
+html[data-theme="dark"] .toolbarGroup,
+html[data-theme="dark"] .alphaBanner,
+html[data-theme="dark"] .topbarTitle{
+  background: var(--ui-panel) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border) !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+
+html[data-theme="dark"] .toolbarLabel,
+html[data-theme="dark"] .drawerTitle,
+html[data-theme="dark"] .alphaBannerText,
+html[data-theme="dark"] .controls label,
+html[data-theme="dark"] .assetsIntro{
+  color: var(--ui-text) !important;
+}
+
+html[data-theme="dark"] .controls,
+html[data-theme="dark"] .panelPage,
+html[data-theme="dark"] .drawerBody{
+  color: var(--ui-text) !important;
+}
+
+html[data-theme="dark"] .tabBtn,
+html[data-theme="dark"] .tool,
+html[data-theme="dark"] .toolbarRow > button,
+html[data-theme="dark"] .ghostBtn,
+html[data-theme="dark"] .drawerMiniBtn,
+html[data-theme="dark"] .toolbarCollapseBtn,
+html[data-theme="dark"] .alphaBannerClose{
+  background: var(--ui-button) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border) !important;
+}
+
+html[data-theme="dark"] .tabBtn:hover,
+html[data-theme="dark"] .tool:hover,
+html[data-theme="dark"] .toolbarRow > button:hover,
+html[data-theme="dark"] .ghostBtn:hover,
+html[data-theme="dark"] .drawerMiniBtn:hover,
+html[data-theme="dark"] .toolbarCollapseBtn:hover,
+html[data-theme="dark"] .alphaBannerClose:hover{
+  background: var(--ui-button-hover) !important;
+}
+
+html[data-theme="dark"] .tabBtn.primary,
+html[data-theme="dark"] .tool.primary,
+html[data-theme="dark"] .toolbarRow > button.primary{
+  background: var(--ui-button-active) !important;
+  border-color: rgba(161,188,255,0.28) !important;
+}
+
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="number"],
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea{
+  background: var(--ui-panel-2) !important;
+  color: var(--ui-text) !important;
+  border-color: var(--ui-border) !important;
+}
+
+html[data-theme="dark"] .donateBanner{
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html[data-theme="dark"] .donateBannerLink{
+  background: rgba(57, 69, 97, 0.92) !important;
+  color: #eff4ff !important;
+  border-color: rgba(189, 205, 245, 0.18) !important;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35) !important;
+}
