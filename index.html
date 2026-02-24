@@ -48,8 +48,7 @@
             <button id="btnLoadMap" title="Load map (.json)">Load</button>
             <button id="btnExport" title="Export PNG">PNG</button>
             <button id="btnPDF" title="Export multipage PDF">PDF</button>
-            <button id="btnThemeMode" title="Toggle light/dark UI">Night</button>
-          </div>
+                      </div>
         </details>
       </div>
 </header>
@@ -96,11 +95,6 @@
                       Snap subdivisions <span id="snapDivOut">4</span>
                       <input id="snapDiv" type="range" min="1" max="8" step="1" value="4">
                     </label>
-
-                    <label class="inline">
-                      <span>Dark mode UI</span>
-                      <input id="darkModeUi" type="checkbox">
-                    </label>
                   </div>
                 </details>
 
@@ -122,6 +116,10 @@
                       <input id="snapStrength" type="range" min="0" max="1" step="0.05" value="0.95">
                     </label>
 
+                    <label class="inline">
+                      <span>Prop grid snap (move/rotate)</span>
+                      <input id="propSnapToggle" type="checkbox" checked>
+                    </label>
                   </div>
                 </details>
 
@@ -306,17 +304,13 @@
                                     <button id="btnPropsDefaults" type="button" class="ghostBtn" title="Reload bundled props">Defaults</button>
                                     <button id="btnPropsClear" type="button" title="Clear imported prop previews">Clear Imported</button>
                                   </div>
-                                  <label class="inline propsSnapToggleRow" title="Snap movement and rotation for selected props">
-                                    <span>Prop grid snap (move/rotate)</span>
-                                    <input id="propSnapToggle" type="checkbox" checked>
-                                  </label>
                                   <input id="propsFolderInput" type="file" accept=".png,.svg,.webp,.jpg,.jpeg,image/*" webkitdirectory multiple hidden>
-                                  <div class="propsHint">Drag props from the shelf onto the map, then use Select to move, rotate, scale, or duplicate them.</div>
+                                  <div class="propsHint">Prototype shelf for imported prop PNGs (doors, beds, fireplaces, etc.). Placement tools can hook into this next.</div>
                                   <div id="propsShelf" class="propsShelf empty" aria-live="polite">
                                     <div class="propsEmpty">No props loaded yet</div>
                                   </div>
                                 </div>
-              <div class="assetsHint">Tip: Drag props onto the map. Use Select to move/rotate/scale. Right-click a prop to toggle shadows.</div>
+              <div class="assetsHint">Tip: Select, then tap to place. Right-click to disable shadows for props.</div>
             </section>
           </div>
         </div>
@@ -335,6 +329,54 @@
 
   <input id="fileLoadMap" type="file" accept="application/json,.json" style="display:none" />
 
+
+  
+  <div id="pngExportModal" class="pdfModalOverlay hidden" aria-hidden="true">
+    <div class="pdfModalScrim" data-png-modal-close></div>
+    <div class="pdfModalCard" role="dialog" aria-modal="true" aria-labelledby="pngExportTitle">
+      <div class="pdfModalHeader">
+        <div>
+          <div class="pdfModalEyebrow">Export</div>
+          <h2 id="pngExportTitle">PNG Export</h2>
+        </div>
+        <button id="btnPngModalClose" class="iconBtn" type="button" aria-label="Close PNG export">✕</button>
+      </div>
+      <div class="pdfModalBody">
+        <div class="pdfSectionCard">
+          <div class="pdfSectionTitle">Image settings</div>
+          <div class="pdfFormGrid">
+            <label>
+              <span>Content area</span>
+              <select id="pngSource">
+                <option value="map">Map bounds</option>
+                <option value="viewport">Current viewport</option>
+              </select>
+            </label>
+            <label>
+              <span>Padding (grid squares)</span>
+              <input id="pngPaddingSquares" type="number" min="0" max="100" step="0.5" value="1">
+            </label>
+            <label>
+              <span>Square size (inches)</span>
+              <input id="pngSquareSizeIn" type="number" min="0.1" max="4" step="0.1" value="1.0">
+            </label>
+            <label class="pdfFieldWide">
+              <span>DPI</span>
+              <input id="pngDpi" type="range" min="72" max="1200" step="4" value="300">
+              <div class="pdfRangeValue"><span id="pngDpiOut">300</span> dpi</div>
+            </label>
+          </div>
+          <div class="pdfHint">1.0 inch squares are standard for tabletop battle maps.</div>
+        </div>
+        <div class="pdfExportSummary" id="pngExportSummary">Ready to export.</div>
+        <div class="pngExportWarning hidden" id="pngExportWarning" role="status" aria-live="polite"></div>
+      </div>
+      <div class="pdfModalFooter">
+        <button id="btnPngCancel" type="button">Cancel</button>
+        <button id="btnPngConfirm" class="primary" type="button">Export PNG</button>
+      </div>
+    </div>
+  </div>
 
   <div id="pdfExportModal" class="pdfModalOverlay hidden" aria-hidden="true">
     <div class="pdfModalScrim" data-pdf-modal-close></div>
@@ -433,6 +475,29 @@
       <div class="pdfModalFooter">
         <button id="btnPdfCancel" type="button">Cancel</button>
         <button id="btnPdfConfirm" type="button" class="primary">Export PDF</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="exportProgressOverlay" class="pdfModalOverlay hidden" aria-hidden="true">
+    <div class="pdfModalScrim"></div>
+    <div class="pdfModalCard exportProgressCard" role="status" aria-live="polite" aria-labelledby="exportProgressTitle">
+      <div class="pdfModalHeader">
+        <div>
+          <div class="pdfModalEyebrow">Export</div>
+          <h2 id="exportProgressTitle">Preparing export…</h2>
+        </div>
+      </div>
+      <div class="pdfModalBody">
+        <div class="exportProgressRow">
+          <div class="exportSpinner" aria-hidden="true"></div>
+          <div id="exportProgressMessage" class="exportProgressMessage">Starting…</div>
+        </div>
+        <div class="exportProgressBar" aria-hidden="true">
+          <div id="exportProgressFill" class="exportProgressFill"></div>
+        </div>
+        <div id="exportProgressMeta" class="pdfHint exportProgressMeta">Working…</div>
       </div>
     </div>
   </div>
