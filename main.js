@@ -137,6 +137,22 @@ const pdfTrimMarksInput = document.getElementById("pdfTrimMarks")
 const pdfOverviewInput = document.getElementById("pdfOverview")
 const pdfIncludeEmptyTilesInput = document.getElementById("pdfIncludeEmptyTiles")
 const pdfTiledSection = document.getElementById("pdfTiledSection")
+const pngExportModal = document.getElementById("pngExportModal")
+const pngExportSummary = document.getElementById("pngExportSummary")
+const pngExportWarning = document.getElementById("pngExportWarning")
+const exportProgressOverlay = document.getElementById("exportProgressOverlay")
+const exportProgressTitle = document.getElementById("exportProgressTitle")
+const exportProgressMessage = document.getElementById("exportProgressMessage")
+const exportProgressFill = document.getElementById("exportProgressFill")
+const exportProgressMeta = document.getElementById("exportProgressMeta")
+const btnPngModalClose = document.getElementById("btnPngModalClose")
+const btnPngCancel = document.getElementById("btnPngCancel")
+const btnPngConfirm = document.getElementById("btnPngConfirm")
+const pngSourceInput = document.getElementById("pngSource")
+const pngPaddingSquaresInput = document.getElementById("pngPaddingSquares")
+const pngSquareSizeInInput = document.getElementById("pngSquareSizeIn")
+const pngDpiInput = document.getElementById("pngDpi")
+const pngDpiOut = document.getElementById("pngDpiOut")
 
 // controls
 const gridSize = document.getElementById("gridSize")
@@ -191,28 +207,18 @@ const R = 50
 
 const UI_THEME_KEY = "dungeonSketch.uiTheme"
 
-function getPreferredTheme(){
-  try {
-    const saved = localStorage.getItem(UI_THEME_KEY)
-    if (saved === "dark" || saved === "light") return saved
-  } catch {}
-  try {
-    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-  } catch {}
-  return "light"
-}
+function getPreferredTheme(){ return "light" }
 
-function applyUiTheme(theme){
-  const next = theme === "dark" ? "dark" : "light"
-  document.body.dataset.theme = next
-  if (darkModeUi) darkModeUi.checked = next === "dark"
-  if (btnThemeMode) btnThemeMode.textContent = next === "dark" ? "Day" : "Night"
-  if (themeColorMeta) themeColorMeta.setAttribute("content", next === "dark" ? "#14181f" : "#f8f7f4")
-  try { localStorage.setItem(UI_THEME_KEY, next) } catch {}
+function applyUiTheme(_theme){
+  document.body.dataset.theme = "light"
+  if (darkModeUi) darkModeUi.checked = false
+  if (btnThemeMode) btnThemeMode.textContent = "Light"
+  if (themeColorMeta) themeColorMeta.setAttribute("content", "#f8f7f4")
+  try { localStorage.removeItem(UI_THEME_KEY) } catch {}
 }
 
 function toggleUiTheme(){
-  applyUiTheme((document.body.dataset.theme || "light") === "dark" ? "light" : "dark")
+  applyUiTheme("light")
 }
 
 function updateHistoryButtons(){
@@ -309,8 +315,6 @@ if (floorColor) {
 }
 if (backgroundColor) backgroundColor.addEventListener("input", () => dungeon.style.backgroundColor = backgroundColor.value)
 if (transparentBg) transparentBg.addEventListener("change", () => dungeon.style.transparentBackground = !!transparentBg.checked)
-if (darkModeUi) darkModeUi.addEventListener("change", () => applyUiTheme(darkModeUi.checked ? "dark" : "light"))
-if (btnThemeMode) btnThemeMode.addEventListener("click", toggleUiTheme)
 
 if (snapDiv) snapDiv.addEventListener("input", () => {
   const v = Math.max(1, Math.min(8, Math.round(Number(snapDiv.value) || 4)))
@@ -1695,7 +1699,7 @@ if (fileLoadMap) fileLoadMap.addEventListener("change", async (e) => {
   e.target.value = ""
 })
 btnClear.addEventListener("click", () => { pushUndo(); dungeon.spaces=[]; dungeon.paths=[]; dungeon.shapes=[]; placedTexts=[]; refreshEditSeqCounter(); selectedShapeId=null; selectedTextId=null; draft=null; draftRect=null; freeDraw=null; draftShape=null; eraseStroke=null; syncTextPanelVisibility(); updateHistoryButtons() })
-btnExport.addEventListener("click", exportPNG)
+btnExport.addEventListener("click", () => exportPNG().catch(err => { console.error(err); alert("PNG export failed. See console.") }))
 btnPDF?.addEventListener("click", () => exportMultipagePDF().catch(err => { console.error(err); alert("PDF export failed. See console."); }))
 if (btnFinish) btnFinish.addEventListener("click", finishTool)
 if (btnUnder) btnUnder.addEventListener("click", () => {
@@ -1759,29 +1763,216 @@ function renderSceneToCanvasForBounds(targetCanvas, worldBounds){
   return { ctx: tctx, cam: exportCam }
 }
 
-function exportPNG(){
-  const bounds = getExportWorldBounds()
-  if (!bounds){
-    alert('Draw something first.')
+let pngExportDialogState = {
+  source: 'map',
+  paddingSquares: 1,
+  squareSizeIn: 1.0,
+  dpi: 300,
+}
+
+function normalizePngExportOpts(raw = {}){
+  const source = String(raw.source || 'map').toLowerCase().includes('view') ? 'viewport' : 'map'
+  return {
+    source,
+    paddingSquares: clampNum(Number(raw.paddingSquares ?? (source === 'viewport' ? 0 : 1)) || 0, 0, 100),
+    squareSizeIn: clampNum(Number(raw.squareSizeIn) || 1, 0.1, 4),
+    dpi: Math.round(clampNum(Number(raw.dpi) || 300, 72, 1200)),
+  }
+}
+
+function applyPngExportModalStateToInputs(raw){
+  const opts = normalizePngExportOpts(raw)
+  if (pngSourceInput) pngSourceInput.value = opts.source === 'viewport' ? 'viewport' : 'map'
+  if (pngPaddingSquaresInput) pngPaddingSquaresInput.value = String(Number(opts.paddingSquares.toFixed(2)))
+  if (pngSquareSizeInInput) pngSquareSizeInInput.value = String(Number(opts.squareSizeIn.toFixed(2)))
+  if (pngDpiInput) pngDpiInput.value = String(opts.dpi)
+  if (pngDpiOut) pngDpiOut.textContent = String(opts.dpi)
+  syncPngExportModalSummary()
+}
+
+function readPngExportModalInputs(){
+  return normalizePngExportOpts({
+    source: pngSourceInput?.value || 'map',
+    paddingSquares: pngPaddingSquaresInput?.value,
+    squareSizeIn: pngSquareSizeInInput?.value,
+    dpi: pngDpiInput?.value,
+  })
+}
+
+function computePngExportPlan(rawOpts){
+  const opts = normalizePngExportOpts(rawOpts)
+  const bounds = getExportWorldBounds({ source: opts.source, paddingSquares: opts.paddingSquares })
+  if (!bounds) return { ok:false, opts, reason:'Nothing to export from the selected area.' }
+  const g = Math.max(1, Number(dungeon.gridSize) || 32)
+  const worldW = Math.max(0, bounds.maxx - bounds.minx)
+  const worldH = Math.max(0, bounds.maxy - bounds.miny)
+  if (!(worldW > 0) || !(worldH > 0)) return { ok:false, opts, reason:'Nothing to export from the selected area.' }
+  const cols = worldW / g
+  const rows = worldH / g
+  const pxPerSquare = opts.squareSizeIn * opts.dpi
+  const widthPx = Math.max(1, Math.round(cols * pxPerSquare))
+  const heightPx = Math.max(1, Math.round(rows * pxPerSquare))
+  const printWidthIn = cols * opts.squareSizeIn
+  const printHeightIn = rows * opts.squareSizeIn
+  let severity = ''
+  const warnings = []
+  if (widthPx > 8192 || heightPx > 8192){ warnings.push('Large export may be slow in the browser.'); severity = 'warn' }
+  if (widthPx > 16384 || heightPx > 16384){ warnings.push('Resolution exceeds common browser canvas limits and may fail.'); severity = 'error' }
+  const totalPx = widthPx * heightPx
+  if (totalPx > 80_000_000){ warnings.push('Very large total pixel count may use too much memory.'); severity = severity || 'warn' }
+  if (totalPx > 200_000_000){ warnings.push('Total pixel count is extremely high and may fail.'); severity = 'error' }
+  return { ok:true, opts, bounds, cols, rows, pxPerSquare, widthPx, heightPx, printWidthIn, printHeightIn, totalPx, warnings, severity }
+}
+
+function syncPngExportModalSummary(){
+  if (!pngExportSummary) return
+  const plan = computePngExportPlan(readPngExportModalInputs())
+  if (!plan.ok){
+    pngExportSummary.textContent = plan.reason || 'Nothing to export.'
+    if (pngExportWarning){ pngExportWarning.textContent = ''; pngExportWarning.classList.add('hidden'); pngExportWarning.classList.remove('warn','error') }
+    if (btnPngConfirm) btnPngConfirm.disabled = true
     return
   }
+  pngExportSummary.textContent = `Pixels per square: ${Math.round(plan.pxPerSquare)} px • Final resolution: ${plan.widthPx} × ${plan.heightPx} px • Print size: ${plan.printWidthIn.toFixed(2)} × ${plan.printHeightIn.toFixed(2)} in @ ${plan.opts.dpi} DPI`
+  if (pngExportWarning){
+    if (plan.warnings.length){
+      pngExportWarning.textContent = plan.warnings.join(' ')
+      pngExportWarning.classList.remove('hidden')
+      pngExportWarning.classList.toggle('warn', plan.severity !== 'error')
+      pngExportWarning.classList.toggle('error', plan.severity === 'error')
+    } else {
+      pngExportWarning.textContent = ''
+      pngExportWarning.classList.add('hidden')
+      pngExportWarning.classList.remove('warn','error')
+    }
+  }
+  if (btnPngConfirm) btnPngConfirm.disabled = plan.severity === 'error'
+  if (pngDpiOut && pngDpiInput) pngDpiOut.textContent = String(Math.round(Number(pngDpiInput.value) || plan.opts.dpi))
+}
 
-  const worldW = bounds.maxx - bounds.minx
-  const worldH = bounds.maxy - bounds.miny
-  const aspect = worldW > 0 ? (worldH / worldW) : 1
-  const defaultWidth = Math.max(1024, Math.min(8192, Math.round(worldW * 4)))
-  const widthPx = Math.max(256, Math.min(16384, Math.round(Number(prompt('PNG export width (px) — full map will be auto-fit', String(defaultWidth))) || defaultWidth)))
-  const heightPx = Math.max(256, Math.min(16384, Math.round(widthPx * aspect)))
+function openPngExportOptionsDialog(){
+  if (!pngExportModal) return Promise.resolve(null)
+  applyPngExportModalStateToInputs(pngExportDialogState)
+  pngExportModal.classList.remove('hidden')
+  pngExportModal.setAttribute('aria-hidden', 'false')
+  document.body.classList.add('modal-open')
+  return new Promise((resolve) => {
+    let closed = false
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const close = (result) => {
+      if (closed) return
+      closed = true
+      pngExportModal.classList.add('hidden')
+      pngExportModal.setAttribute('aria-hidden', 'true')
+      document.body.classList.remove('modal-open')
+      document.body.style.overflow = prevOverflow
+      if (result) pngExportDialogState = normalizePngExportOpts(result)
+      cleanup()
+      resolve(result || null)
+    }
+    const onCancel = () => close(null)
+    const onConfirm = () => {
+      const plan = computePngExportPlan(readPngExportModalInputs())
+      if (!plan.ok || plan.severity === 'error') return
+      close(plan.opts)
+    }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape'){ e.preventDefault(); onCancel(); return }
+      if (e.key === 'Enter'){
+        const el = e.target
+        const tag = (el && el.tagName) ? el.tagName.toLowerCase() : ''
+        if (tag !== 'textarea' && !(tag === 'button' && el.id === 'btnPngCancel')) { e.preventDefault(); onConfirm() }
+      }
+    }
+    const onBackdrop = (e) => { if (e.target && e.target.closest('[data-png-modal-close]')) onCancel() }
+    const onInput = () => syncPngExportModalSummary()
+    const cleanup = () => {
+      btnPngCancel?.removeEventListener('click', onCancel)
+      btnPngModalClose?.removeEventListener('click', onCancel)
+      btnPngConfirm?.removeEventListener('click', onConfirm)
+      pngExportModal?.removeEventListener('click', onBackdrop)
+      pngExportModal?.removeEventListener('input', onInput)
+      pngExportModal?.removeEventListener('change', onInput)
+      window.removeEventListener('keydown', onKeyDown, true)
+    }
+    btnPngCancel?.addEventListener('click', onCancel)
+    btnPngModalClose?.addEventListener('click', onCancel)
+    btnPngConfirm?.addEventListener('click', onConfirm)
+    pngExportModal?.addEventListener('click', onBackdrop)
+    pngExportModal?.addEventListener('input', onInput)
+    pngExportModal?.addEventListener('change', onInput)
+    window.addEventListener('keydown', onKeyDown, true)
+    queueMicrotask(() => (btnPngConfirm || btnPngCancel)?.focus())
+  })
+}
 
-  const out = document.createElement('canvas')
-  out.width = widthPx
-  out.height = heightPx
-  renderSceneToCanvasForBounds(out, bounds)
+function showExportProgress(title, message, progress = null, meta = ""){
+  if (!exportProgressOverlay) return
+  exportProgressOverlay.classList.remove("hidden")
+  exportProgressOverlay.setAttribute("aria-hidden", "false")
+  if (exportProgressTitle) exportProgressTitle.textContent = title || "Exporting…"
+  if (exportProgressMessage) exportProgressMessage.textContent = message || "Working…"
+  if (exportProgressFill){
+    const pct = Number.isFinite(progress) ? Math.max(2, Math.min(100, progress)) : 12
+    exportProgressFill.style.width = pct + "%"
+  }
+  if (exportProgressMeta) exportProgressMeta.textContent = meta || ""
+}
 
-  const a = document.createElement('a')
-  a.download = `dungeon-map-${widthPx}x${heightPx}.png`
-  a.href = out.toDataURL('image/png')
-  a.click()
+function updateExportProgress(message, progress = null, meta = undefined){
+  if (exportProgressOverlay?.classList.contains("hidden")) return showExportProgress("Exporting…", message, progress, meta || "")
+  if (exportProgressMessage && message != null) exportProgressMessage.textContent = message
+  if (exportProgressFill && Number.isFinite(progress)) exportProgressFill.style.width = Math.max(2, Math.min(100, progress)) + "%"
+  if (exportProgressMeta && meta !== undefined) exportProgressMeta.textContent = meta
+}
+
+function hideExportProgress(){
+  if (!exportProgressOverlay) return
+  exportProgressOverlay.classList.add("hidden")
+  exportProgressOverlay.setAttribute("aria-hidden", "true")
+}
+
+
+function nextPaintFrame(){
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve))
+  })
+}
+
+async function showExportProgressAndYield(title, message, progress = null, meta = ""){
+  showExportProgress(title, message, progress, meta)
+  await nextPaintFrame()
+}
+
+async function updateExportProgressAndYield(message, progress = null, meta = undefined){
+  updateExportProgress(message, progress, meta)
+  await nextPaintFrame()
+}
+
+async function exportPNG(){
+  const opts = await openPngExportOptionsDialog()
+  if (!opts) return
+  const plan = computePngExportPlan(opts)
+  if (!plan.ok){
+    alert(plan.reason || 'Nothing to export.')
+    return
+  }
+  try {
+    await showExportProgressAndYield('PNG Export', 'Rendering map image…', 15, `${plan.widthPx} × ${plan.heightPx} px`)
+    const out = document.createElement('canvas')
+    out.width = plan.widthPx
+    out.height = plan.heightPx
+    renderSceneToCanvasForBounds(out, plan.bounds)
+    await updateExportProgressAndYield('Encoding PNG…', 82, `${plan.widthPx} × ${plan.heightPx} px`)
+    const a = document.createElement('a')
+    a.download = `dungeon-map-${plan.widthPx}x${plan.heightPx}.png`
+    a.href = out.toDataURL('image/png')
+    await updateExportProgressAndYield('Starting download…', 100, a.download)
+    a.click()
+  } finally {
+    setTimeout(hideExportProgress, 120)
+  }
 }
 
 function compileSignature(){
@@ -2330,6 +2521,7 @@ function drawPdfOverviewPage(pdf, pageMm, opts, layout, tileData, printedTileLab
 }
 
 async function exportSinglePagePDFWithOptions(jsPDF, opts){
+  await showExportProgressAndYield('PDF Export', 'Preparing single-page PDF…', 10, '')
   const bounds = getExportWorldBounds({ source: opts.source === 'viewport' ? 'viewport' : 'map', paddingSquares: opts.paddingSquares })
   if (!bounds){
     alert('Draw something first.')
@@ -2359,11 +2551,13 @@ async function exportSinglePagePDFWithOptions(jsPDF, opts){
 
   const pxW = Math.max(800, Math.round((targetMmW / 25.4) * opts.rasterDpi))
   const pxH = Math.max(800, Math.round((targetMmH / 25.4) * opts.rasterDpi))
+  await updateExportProgressAndYield('Rendering page image…', 45, `${pxW} × ${pxH} px`)
   const out = document.createElement('canvas')
   out.width = pxW
   out.height = pxH
   renderSceneToCanvasForBounds(out, bounds)
 
+  await updateExportProgressAndYield('Building PDF file…', 78, `${opts.paper} ${best.orientation}`)
   const pdf = new jsPDF({
     orientation: best.orientation,
     unit: 'mm',
@@ -2374,10 +2568,13 @@ async function exportSinglePagePDFWithOptions(jsPDF, opts){
   pdf.setFontSize(9)
   pdf.setTextColor(80,80,80)
   pdf.text('Single-page export (fit to page).', marginMm, pageMm.h - Math.max(4, marginMm * 0.5))
+  await updateExportProgressAndYield('Saving PDF…', 100, 'dungeon-map-single-page.pdf')
   pdf.save('dungeon-map-single-page.pdf')
 }
 
+
 async function exportTiledScalePDFWithOptions(jsPDF, opts){
+  await showExportProgressAndYield('PDF Export', 'Preparing tiled PDF…', 10, '')
   const bounds = getExportWorldBounds({ source: opts.source === 'viewport' ? 'viewport' : 'map', paddingSquares: opts.paddingSquares })
   if (!bounds){
     alert('Draw something first.')
@@ -2412,6 +2609,7 @@ async function exportTiledScalePDFWithOptions(jsPDF, opts){
   const marginMm = inchesToMm(opts.marginIn)
   const pxPerSquare = clampNum(Math.round(opts.rasterDpi * opts.squareSizeIn), 24, 2400)
 
+  await updateExportProgressAndYield('Preparing tiled PDF…', 10, `${tilesToPrint.length} tile page(s)`)
   const pdf = new jsPDF({
     orientation: layout.orientation,
     unit: 'mm',
@@ -2422,11 +2620,15 @@ async function exportTiledScalePDFWithOptions(jsPDF, opts){
   const startPage = () => { if (writtenPages > 0) pdf.addPage(); writtenPages++ }
 
   if (opts.overview){
+    await updateExportProgressAndYield('Rendering overview page…', 16, `1 + ${tilesToPrint.length} tile page(s)`)
     startPage()
     drawPdfOverviewPage(pdf, pageMm, opts, layout, tileData, printedTileLabels)
   }
 
   for (let i = 0; i < tilesToPrint.length; i++){
+    const pctBase = opts.overview ? 20 : 14
+    const pct = pctBase + (i / Math.max(1, tilesToPrint.length)) * 72
+    await updateExportProgressAndYield(`Rendering tile ${i+1}/${tilesToPrint.length}…`, pct, tilesToPrint[i]?.label || '')
     const tile = tilesToPrint[i]
     startPage()
 
@@ -2456,6 +2658,7 @@ async function exportTiledScalePDFWithOptions(jsPDF, opts){
   }
 
   const sqLabel = String(opts.squareSizeIn).replace(/\./g, '_')
+  await updateExportProgressAndYield('Saving PDF…', 100, `dungeon-map-tiled-${sqLabel}in.pdf`)
   pdf.save(`dungeon-map-tiled-${sqLabel}in.pdf`)
 }
 
@@ -2466,12 +2669,20 @@ async function exportMultipagePDF(){
     // still allow viewport exports if props-only, but keep quick guard friendly
   }
 
-  const jsPDF = await ensureJsPDF()
-  const opts = await collectPdfExportOptions()
-  if (!opts) return
+  let startedProgress = false
+  try {
+    const opts = await collectPdfExportOptions()
+    if (!opts) return
 
-  if (opts.mode === 'single') return exportSinglePagePDFWithOptions(jsPDF, opts)
-  return exportTiledScalePDFWithOptions(jsPDF, opts)
+    await showExportProgressAndYield('PDF Export', 'Loading PDF engine…', 4, '')
+    startedProgress = true
+    const jsPDF = await ensureJsPDF()
+
+    if (opts.mode === 'single') return await exportSinglePagePDFWithOptions(jsPDF, opts)
+    return await exportTiledScalePDFWithOptions(jsPDF, opts)
+  } finally {
+    if (startedProgress) setTimeout(hideExportProgress, 160)
+  }
 }
 
 // drafting states
