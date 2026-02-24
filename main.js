@@ -845,10 +845,20 @@ function getPropSnapEnabled(){
 function snapPropWorldPoint(world){
   if (!getPropSnapEnabled()) return { x: world.x, y: world.y }
   const step = Math.max(1, Number(dungeon.gridSize) || 32)
-  // Props snap to grid-cell centers (not line intersections) for cleaner placement.
+  // Default placement snaps to grid-cell centers (not line intersections) for cleaner placement.
   return {
     x: (Math.round((world.x / step) - 0.5) + 0.5) * step,
     y: (Math.round((world.y / step) - 0.5) + 0.5) * step
+  }
+}
+function snapPropMoveWorldPoint(world){
+  if (!getPropSnapEnabled()) return { x: world.x, y: world.y }
+  const grid = Math.max(1, Number(dungeon.gridSize) || 32)
+  const step = Math.max(0.5, grid / 2)
+  // Move drags can land on half-grid increments for finer prop alignment.
+  return {
+    x: Math.round(world.x / step) * step,
+    y: Math.round(world.y / step) * step
   }
 }
 function normalizeAngleRad(a){
@@ -2963,7 +2973,7 @@ canvas.addEventListener("pointermove", (e)=>{
     if (propTransformDrag.mode === "move") {
       let nx = propTransformDrag.startX + (world.x - propTransformDrag.startWorld.x)
       let ny = propTransformDrag.startY + (world.y - propTransformDrag.startWorld.y)
-      if (getPropSnapEnabled()) { const snapped = snapPropWorldPoint({ x:nx, y:ny }); nx = snapped.x; ny = snapped.y }
+      if (getPropSnapEnabled()) { const snapped = snapPropMoveWorldPoint({ x:nx, y:ny }); nx = snapped.x; ny = snapped.y }
       if (Math.abs(nx - p.x) > 1e-6 || Math.abs(ny - p.y) > 1e-6) propTransformDrag.changed = true
       p.x = nx; p.y = ny
     } else if (propTransformDrag.mode === "rotate") {
