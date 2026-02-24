@@ -28,6 +28,13 @@
       "gridW": 0.95,
       "gridH": 0.95
     },
+        {
+      "id": "door-locked",
+      "name": "Door 1x locked",
+      "src": "door-locked-span.svg",
+      "gridW": 1.0,
+      "gridH": 0.42
+    },
     {
       "id": "bed",
       "name": "Bed",
