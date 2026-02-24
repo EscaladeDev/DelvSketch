@@ -10,14 +10,14 @@
     {
       "id": "door-2",
       "name": "Door 2x",
-      "src": "door-span.svg",
+      "src": "door-span-2.svg",
       "gridW": 2.0,
       "gridH": 0.42
     },
     {
       "id": "door-3",
       "name": "Door 3x",
-      "src": "door-span.svg",
+      "src": "door-span-3.svg",
       "gridW": 3.0,
       "gridH": 0.42
     },
