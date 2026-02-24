@@ -382,18 +382,7 @@ function restore(s){
   // Backward compatible: restore either plain dungeon snapshot or wrapped save object.
   if (d && (d.dungeon || d.camera)) { applyLoadedMapObject(d); return }
   setDungeonFromObject(d)
-  placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(p => ({
-    id: String(p?.id || ((typeof globalThis!=='undefined' && globalThis.crypto && globalThis.crypto.randomUUID) ? globalThis.crypto.randomUUID() : (Date.now()+Math.random()))),
-    propId: (p && p.propId != null) ? String(p.propId) : undefined,
-    name: String(p?.name || "Prop"),
-    url: String(p?.url || ""),
-    x: safeNum(p?.x, 0),
-    y: safeNum(p?.y, 0),
-    w: Math.max(1, safeNum(p?.w, dungeon.gridSize)),
-    h: Math.max(1, safeNum(p?.h, dungeon.gridSize)),
-    rot: safeNum(p?.rot, 0),
-    shadowDisabled: p?.shadowDisabled === true
-  })).filter(p => p.url) : placedProps
+  placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(normalizePlacedPropObj).filter(p => p && p.url) : placedProps
   placedTexts = Array.isArray(d.placedTexts) ? d.placedTexts.map(normalizeTextObj) : []
   draft=null; draftRect=null; freeDraw=null; draftShape=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
   syncTextPanelVisibility()
@@ -404,6 +393,38 @@ function restore(s){
 
 function safeNum(v, fallback=0){ const n = Number(v); return Number.isFinite(n) ? n : fallback }
 function cloneJson(v){ return JSON.parse(JSON.stringify(v)) }
+
+function normalizePlacedPropObj(p){
+  if (!p || typeof p !== "object") return null
+  const fallbackW = Math.max(1, safeNum(p?.w, dungeon.gridSize))
+  const fallbackH = Math.max(1, safeNum(p?.h, dungeon.gridSize))
+  const baseW = Math.max(1, safeNum(p?.baseW, fallbackW))
+  const baseH = Math.max(1, safeNum(p?.baseH, fallbackH))
+  const scale = Math.max(0.05, safeNum(p?.scale, 1))
+  return {
+    id: String(p?.id || ((typeof globalThis!=='undefined' && globalThis.crypto && globalThis.crypto.randomUUID) ? globalThis.crypto.randomUUID() : (Date.now()+Math.random()))),
+    propId: (p && p.propId != null) ? String(p.propId) : undefined,
+    name: String(p?.name || "Prop"),
+    url: String(p?.url || ""),
+    x: safeNum(p?.x, 0),
+    y: safeNum(p?.y, 0),
+    w: fallbackW,
+    h: fallbackH,
+    baseW,
+    baseH,
+    scale,
+    rot: safeNum(p?.rot, 0),
+    shadowDisabled: p?.shadowDisabled === true
+  }
+}
+function getPlacedPropRenderSize(prop){
+  const fallbackW = Math.max(1, Number(prop?.w || dungeon.gridSize || 32))
+  const fallbackH = Math.max(1, Number(prop?.h || dungeon.gridSize || 32))
+  const baseW = Math.max(1, Number(prop?.baseW || fallbackW))
+  const baseH = Math.max(1, Number(prop?.baseH || fallbackH))
+  const scale = Math.max(0.05, Number(prop?.scale || 1))
+  return { w: baseW * scale, h: baseH * scale }
+}
 
 let activePanelTab = "style"
 let armedPropId = null
@@ -845,10 +866,15 @@ function rotatePropAngleMaybeSnap(rad){
   return out
 }
 function propHandleLocal(prop){
-  const w = Math.max(1, Number(prop?.w || dungeon.gridSize || 32))
-  const h = Math.max(1, Number(prop?.h || dungeon.gridSize || 32))
+  const size = getPlacedPropRenderSize(prop)
+  const w = Math.max(1, Number(size.w || dungeon.gridSize || 32))
+  const h = Math.max(1, Number(size.h || dungeon.gridSize || 32))
   const offset = Math.max(10, Math.min(24, w * 0.18))
   return { x: 0, y: -h/2 - offset }
+}
+function propScaleHandleLocal(prop){
+  const size = getPlacedPropRenderSize(prop)
+  return { x: Math.max(1, size.w)/2, y: Math.max(1, size.h)/2 }
 }
 function propLocalToWorld(prop, local){
   const r = Number(prop?.rot || 0) || 0
@@ -868,8 +894,9 @@ function worldToPropLocal(prop, world){
 function hitPlacedProp(world, prop){
   if (!prop) return false
   const l = worldToPropLocal(prop, world)
-  const w = Math.max(1, Number(prop.w || dungeon.gridSize || 32))
-  const h = Math.max(1, Number(prop.h || dungeon.gridSize || 32))
+  const size = getPlacedPropRenderSize(prop)
+  const w = Math.max(1, Number(size.w || dungeon.gridSize || 32))
+  const h = Math.max(1, Number(size.h || dungeon.gridSize || 32))
   return Math.abs(l.x) <= w/2 && Math.abs(l.y) <= h/2
 }
 function hitPlacedPropRotateHandle(world, prop){
@@ -878,12 +905,18 @@ function hitPlacedPropRotateHandle(world, prop){
   const rWorld = Math.max((12 / Math.max(0.001, camera.zoom)), (dungeon.gridSize || 32) * 0.22)
   return Math.hypot(world.x - hw.x, world.y - hw.y) <= rWorld
 }
+function hitPlacedPropScaleHandle(world, prop){
+  if (!prop) return false
+  const hw = propLocalToWorld(prop, propScaleHandleLocal(prop))
+  const rWorld = Math.max((12 / Math.max(0.001, camera.zoom)), (dungeon.gridSize || 32) * 0.2)
+  return Math.hypot(world.x - hw.x, world.y - hw.y) <= rWorld
+}
 function pickPlacedPropAtWorld(world){
   if (!Array.isArray(placedProps)) return null
   for (let i = placedProps.length - 1; i >= 0; i--){
     const p = placedProps[i]
     if (!p) continue
-    if (hitPlacedPropRotateHandle(world, p) || hitPlacedProp(world, p)) return p
+    if (hitPlacedPropRotateHandle(world, p) || hitPlacedPropScaleHandle(world, p) || hitPlacedProp(world, p)) return p
   }
   return null
 }
@@ -929,12 +962,34 @@ function placePropAtWorld(prop, world){
     y: placeWorld.y,
     w,
     h,
+    baseW: w,
+    baseH: h,
+    scale: 1,
     rot: rotatePropAngleMaybeSnap(Number(prop.rot || 0) || 0),
     shadowDisabled: false
   }
   placedProps.push(placed)
   selectedPropId = placed.id
   return placed
+}
+
+function duplicatePlacedPropById(id, opts = {}){
+  const src = getPlacedPropById(id)
+  if (!src) return null
+  const dx = Number(opts.dx) || 0
+  const dy = Number(opts.dy) || 0
+  const copy = {
+    ...src,
+    id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random()),
+    x: (Number(src.x) || 0) + dx,
+    y: (Number(src.y) || 0) + dy
+  }
+  placedProps.push(copy)
+  selectedPropId = copy.id
+  selectedTextId = null
+  selectedShapeId = null
+  syncTextPanelVisibility()
+  return copy
 }
 
 function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride = null){
@@ -1029,10 +1084,13 @@ function drawPropSelection(){
   const p = getPlacedPropById(selectedPropId)
   if (!p) return
   const c = camera.worldToScreen({ x: p.x, y: p.y })
-  const w = Math.max(1, (p.w || dungeon.gridSize) * camera.zoom)
-  const h = Math.max(1, (p.h || dungeon.gridSize) * camera.zoom)
+  const rs = getPlacedPropRenderSize(p)
+  const w = Math.max(1, rs.w * camera.zoom)
+  const h = Math.max(1, rs.h * camera.zoom)
   const handleW = propLocalToWorld(p, propHandleLocal(p))
   const hs = camera.worldToScreen(handleW)
+  const scaleHandleW = propLocalToWorld(p, propScaleHandleLocal(p))
+  const shs = camera.worldToScreen(scaleHandleW)
   ctx.save()
   ctx.translate(c.x, c.y)
   if (p.rot) ctx.rotate(p.rot)
@@ -1053,6 +1111,11 @@ function drawPropSelection(){
   ctx.strokeStyle = 'rgba(255,255,255,0.95)'
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.arc(hs.x, hs.y, 7, 0, Math.PI*2); ctx.stroke()
+  ctx.fillStyle = 'rgba(80,120,255,0.95)'
+  ctx.fillRect(shs.x - 6, shs.y - 6, 12, 12)
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(shs.x - 6, shs.y - 6, 12, 12)
 }
 
 const __propLayerTmp = {}
@@ -1108,8 +1171,9 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
       const img = propImageCache.get(a.url) || (()=>{ const p = propMeta; return p ? getPropImage(p) : null })()
       if (!img) continue
       const c = targetCamera.worldToScreen({ x: a.x, y: a.y })
-      const w = Math.max(1, (a.w || dungeon.gridSize) * targetCamera.zoom)
-      const h = Math.max(1, (a.h || dungeon.gridSize) * targetCamera.zoom)
+      const rs = getPlacedPropRenderSize(a)
+      const w = Math.max(1, rs.w * targetCamera.zoom)
+      const h = Math.max(1, rs.h * targetCamera.zoom)
 
       // Occupancy mask of prop bodies so no prop shadow can render over any prop sprite.
       if (img.complete && img.naturalWidth > 0){
@@ -1206,8 +1270,9 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
     const img = propImageCache.get(a.url) || (()=>{ const p = propMeta; return p ? getPropImage(p) : null })()
     if (!img) continue
     const c = targetCamera.worldToScreen({ x: a.x, y: a.y })
-    const w = Math.max(1, (a.w || dungeon.gridSize) * targetCamera.zoom)
-    const h = Math.max(1, (a.h || dungeon.gridSize) * targetCamera.zoom)
+    const rs = getPlacedPropRenderSize(a)
+    const w = Math.max(1, rs.w * targetCamera.zoom)
+    const h = Math.max(1, rs.h * targetCamera.zoom)
 
     targetCtx.save()
     targetCtx.translate(c.x, c.y)
@@ -1350,8 +1415,8 @@ function renderPropsShelf(){
   for (const prop of propsCatalog){
     const tile = document.createElement("button")
     tile.type = "button"
-    tile.className = "propTile" + (armedPropId === prop.id ? " armed" : "")
-    tile.title = prop.name + " — drag onto map or tap to arm one-click placement"
+    tile.className = "propTile"
+    tile.title = prop.name + " — drag onto map to place"
     tile.draggable = true
     tile.dataset.propId = prop.id
 
@@ -1374,15 +1439,12 @@ function renderPropsShelf(){
     tile.appendChild(badge)
 
     tile.addEventListener("click", () => {
-      armedPropId = (armedPropId === prop.id) ? null : prop.id
-      renderPropsShelf()
+      // Drag/drop is the primary prop placement flow; clicking a tile just focuses the Assets tab.
       setPanelTab("assets")
     })
 
     tile.addEventListener("dragstart", (e) => {
       dragPropId = prop.id
-      armedPropId = prop.id
-      renderPropsShelf()
       try {
         if (e.dataTransfer){
           e.dataTransfer.effectAllowed = "copy"
@@ -1393,6 +1455,7 @@ function renderPropsShelf(){
     })
     tile.addEventListener("dragend", () => {
       dragPropId = null
+      renderPropsShelf()
     })
 
     propsShelf.appendChild(tile)
@@ -1501,18 +1564,7 @@ function applyLoadedMapObject(obj){
   // Supports both wrapped format {dungeon, camera...} and plain dungeon object.
   const d = (obj.dungeon && typeof obj.dungeon === "object") ? obj.dungeon : obj
   setDungeonFromObject(d)
-  placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(p => ({
-    id: String(p?.id || ((typeof globalThis!=='undefined' && globalThis.crypto && globalThis.crypto.randomUUID) ? globalThis.crypto.randomUUID() : (Date.now()+Math.random()))),
-    propId: (p && p.propId != null) ? String(p.propId) : undefined,
-    name: String(p?.name || "Prop"),
-    url: String(p?.url || ""),
-    x: safeNum(p?.x, 0),
-    y: safeNum(p?.y, 0),
-    w: Math.max(1, safeNum(p?.w, dungeon.gridSize)),
-    h: Math.max(1, safeNum(p?.h, dungeon.gridSize)),
-    rot: safeNum(p?.rot, 0),
-    shadowDisabled: p?.shadowDisabled === true
-  })).filter(p => p.url) : []
+  placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(normalizePlacedPropObj).filter(p => p && p.url) : []
   placedTexts = Array.isArray(d.placedTexts) ? d.placedTexts.map(normalizeTextObj) : []
 
   
@@ -1652,8 +1704,9 @@ if (btnUnder) btnUnder.addEventListener("click", () => {
 
 function getPropWorldAABB(a){
   const cx = Number(a?.x || 0), cy = Number(a?.y || 0)
-  const w = Math.max(0, Number(a?.w || dungeon.gridSize) || dungeon.gridSize)
-  const h = Math.max(0, Number(a?.h || dungeon.gridSize) || dungeon.gridSize)
+  const rs = getPlacedPropRenderSize(a)
+  const w = Math.max(0, Number(rs.w || dungeon.gridSize) || dungeon.gridSize)
+  const h = Math.max(0, Number(rs.h || dungeon.gridSize) || dungeon.gridSize)
   const rot = Number(a?.rot || 0) || 0
   const c = Math.cos(rot), s = Math.sin(rot)
   const ex = Math.abs(c) * (w/2) + Math.abs(s) * (h/2)
@@ -2553,9 +2606,12 @@ function maybeHandlePropDrop(e){
   e.preventDefault()
   const pos = getPointerPos(e)
   if (placePropAtScreenById(pid, pos)) {
-    // Keep the asset armed so the user can place multiple copies until they deselect it.
+    // Drag/drop is one-shot: clear transient drag/arm state and return to Select.
     dragPropId = null
+    armedPropId = null
+    setTool("select")
     renderPropsShelf()
+    try { canvas.focus && canvas.focus() } catch {}
     return true
   }
   return false
@@ -2606,6 +2662,8 @@ canvas.addEventListener("dragover", (e)=>{
   try { if (e.dataTransfer) e.dataTransfer.dropEffect = "copy" } catch {}
 })
 canvas.addEventListener("drop", (e)=>{
+  // Prevent the window-level fallback drop handler from also placing a prop.
+  e.stopPropagation()
   maybeHandlePropDrop(e)
 })
 // Fallback: if the drag lands on a non-canvas overlay element, still place onto the canvas at cursor position.
@@ -2617,6 +2675,7 @@ window.addEventListener("dragover", (e)=>{
   }
 })
 window.addEventListener("drop", (e)=>{
+  if (e.defaultPrevented) return
   maybeHandlePropDrop(e)
 })
 canvas.addEventListener("wheel", (e)=>{
@@ -2640,6 +2699,13 @@ window.addEventListener("keydown", (e)=>{
     if (k === "z" && e.shiftKey){ e.preventDefault(); redo(); return }
     if (k === "z"){ e.preventDefault(); undo(); return }
     if (k === "y"){ e.preventDefault(); redo(); return }
+    if (k === "d" && selectedPropId){
+      e.preventDefault()
+      pushUndo()
+      const step = Math.max(4, subGrid ? subGrid() : ((dungeon.gridSize || 32) / 2))
+      duplicatePlacedPropById(selectedPropId, { dx: step, dy: step })
+      return
+    }
   }
   const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase()
   if (tag === "input" || tag === "textarea") return
@@ -2735,17 +2801,6 @@ canvas.addEventListener("pointerdown", (e)=>{
   const screen = getPointerPos(e)
   const world = camera.screenToWorld(screen)
 
-  // Armed asset placement works in any tool (including Select) and stays armed until deselected.
-  if (armedPropId){
-    const beforeCount = placedProps.length
-    placePropAtWorld(getPropById(armedPropId), world)
-    if (placedProps.length > beforeCount){
-      renderPropsShelf()
-      resetTransientDrafts()
-      return
-    }
-  }
-
   // Select tool: move text / props
   if (tool === "select") {
     const pickedText = pickTextAtScreen(screen)
@@ -2770,11 +2825,22 @@ canvas.addEventListener("pointerdown", (e)=>{
     selectedTextId = null
     selectedPropId = picked.id
     syncTextPanelVisibility()
-    const onHandle = hitPlacedPropRotateHandle(world, picked)
+    const onRotateHandle = hitPlacedPropRotateHandle(world, picked)
+    const onScaleHandle = !onRotateHandle && hitPlacedPropScaleHandle(world, picked)
+    if (!onRotateHandle && !onScaleHandle && e.altKey){
+      pushUndo()
+      const dup = duplicatePlacedPropById(picked.id)
+      if (dup){
+        propTransformDrag = { mode:"move", id:dup.id, startWorld:world, startX:dup.x, startY:dup.y, changed:false, pushedUndo:true, origin:"duplicate" }
+        return
+      }
+    }
     pushUndo()
-    propTransformDrag = onHandle
+    propTransformDrag = onRotateHandle
       ? { mode:"rotate", id:picked.id, startWorld:world, startRot:Number(picked.rot || 0) || 0, startAngle:Math.atan2(world.y - picked.y, world.x - picked.x), changed:false, pushedUndo:true }
-      : { mode:"move", id:picked.id, startWorld:world, startX:picked.x, startY:picked.y, changed:false, pushedUndo:true }
+      : onScaleHandle
+        ? { mode:"scale", id:picked.id, startScale:Math.max(0.05, Number(picked.scale || 1) || 1), startPointerDist:Math.max(0.001, Math.hypot(world.x - (Number(picked.x)||0), world.y - (Number(picked.y)||0))), changed:false, pushedUndo:true }
+        : { mode:"move", id:picked.id, startWorld:world, startX:picked.x, startY:picked.y, changed:false, pushedUndo:true }
     return
   }
 
@@ -2900,11 +2966,18 @@ canvas.addEventListener("pointermove", (e)=>{
       if (getPropSnapEnabled()) { const snapped = snapPropWorldPoint({ x:nx, y:ny }); nx = snapped.x; ny = snapped.y }
       if (Math.abs(nx - p.x) > 1e-6 || Math.abs(ny - p.y) > 1e-6) propTransformDrag.changed = true
       p.x = nx; p.y = ny
-    } else {
+    } else if (propTransformDrag.mode === "rotate") {
       const ang = Math.atan2(world.y - p.y, world.x - p.x)
       const nextRot = rotatePropAngleMaybeSnap((propTransformDrag.startRot || 0) + (ang - propTransformDrag.startAngle))
       if (Math.abs(nextRot - (Number(p.rot || 0) || 0)) > 1e-6) propTransformDrag.changed = true
       p.rot = nextRot
+    } else if (propTransformDrag.mode === "scale") {
+      const dist = Math.max(0.001, Math.hypot(world.x - (Number(p.x)||0), world.y - (Number(p.y)||0)))
+      let nextScale = Math.max(0.05, (Number(propTransformDrag.startScale) || 1) * (dist / Math.max(0.001, Number(propTransformDrag.startPointerDist) || 1)))
+      nextScale = Math.min(8, Math.max(0.2, nextScale))
+      if (getPropSnapEnabled()) nextScale = Math.round(nextScale / 0.05) * 0.05
+      if (Math.abs(nextScale - (Number(p.scale || 1) || 1)) > 1e-6) propTransformDrag.changed = true
+      p.scale = nextScale
     }
     return
   }
@@ -2980,7 +3053,7 @@ canvas.addEventListener("pointerup", (e)=>{
 
   // end prop transform drag
   if (propTransformDrag){
-    if (!propTransformDrag.changed && propTransformDrag.pushedUndo) undoStack.pop()
+    if (!propTransformDrag.changed && propTransformDrag.pushedUndo && propTransformDrag.origin !== "duplicate") undoStack.pop()
     propTransformDrag = null
     return
   }
@@ -3058,7 +3131,7 @@ canvas.addEventListener("dblclick", (e)=>{
 canvas.addEventListener("pointercancel", (e)=>{
   pointers.delete(e.pointerId)
   if (pointers.size<2) gesture=null
-  if (propTransformDrag && !propTransformDrag.changed && propTransformDrag.pushedUndo) undoStack.pop()
+  if (propTransformDrag && !propTransformDrag.changed && propTransformDrag.pushedUndo && propTransformDrag.origin !== "duplicate") undoStack.pop()
   panDrag=null
   draftRect=null
   freeDraw=null
