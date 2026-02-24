@@ -31,7 +31,7 @@
     {
       "id": "door-locked-2",
       "name": "Locked Door 2x",
-      "src": "door-locked-span.svg",
+      "src": "door-locked-span-2.svg",
       "gridW": 2.0,
       "gridH": 0.42
     },
