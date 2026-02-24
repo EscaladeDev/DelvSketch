@@ -122,10 +122,6 @@
                       <input id="snapStrength" type="range" min="0" max="1" step="0.05" value="0.95">
                     </label>
 
-                    <label class="inline">
-                      <span>Prop grid snap (move/rotate)</span>
-                      <input id="propSnapToggle" type="checkbox" checked>
-                    </label>
                   </div>
                 </details>
 
@@ -310,13 +306,17 @@
                                     <button id="btnPropsDefaults" type="button" class="ghostBtn" title="Reload bundled props">Defaults</button>
                                     <button id="btnPropsClear" type="button" title="Clear imported prop previews">Clear Imported</button>
                                   </div>
+                                  <label class="inline propsSnapToggleRow" title="Snap movement and rotation for selected props">
+                                    <span>Prop grid snap (move/rotate)</span>
+                                    <input id="propSnapToggle" type="checkbox" checked>
+                                  </label>
                                   <input id="propsFolderInput" type="file" accept=".png,.svg,.webp,.jpg,.jpeg,image/*" webkitdirectory multiple hidden>
-                                  <div class="propsHint">Prototype shelf for imported prop PNGs (doors, beds, fireplaces, etc.). Placement tools can hook into this next.</div>
+                                  <div class="propsHint">Drag props from the shelf onto the map, then use Select to move, rotate, scale, or duplicate them.</div>
                                   <div id="propsShelf" class="propsShelf empty" aria-live="polite">
                                     <div class="propsEmpty">No props loaded yet</div>
                                   </div>
                                 </div>
-              <div class="assetsHint">Tip: Select, then tap to place. Right-click to disable shadows for props.</div>
+              <div class="assetsHint">Tip: Drag props onto the map. Use Select to move/rotate/scale. Right-click a prop to toggle shadows.</div>
             </section>
           </div>
         </div>
