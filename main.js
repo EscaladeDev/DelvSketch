@@ -154,6 +154,94 @@ const pngSquareSizeInInput = document.getElementById("pngSquareSizeIn")
 const pngDpiInput = document.getElementById("pngDpi")
 const pngDpiOut = document.getElementById("pngDpiOut")
 
+
+function dsSvgIcon(name){
+  const common = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"';
+  const icons = {
+    select: `<svg ${common}><path d="M4 3l13 9-5 1 2 6-3 1-2-6-4 4z"/></svg>`,
+    space: `<svg ${common}><rect x="4" y="6" width="16" height="12" rx="2"/></svg>`,
+    path: `<svg ${common}><circle cx="6" cy="17" r="2"/><circle cx="18" cy="7" r="2"/><path d="M8 16l8-8"/></svg>`,
+    free: `<svg ${common}><path d="M4 16c3-8 6 8 9 0s4-7 7-3"/></svg>`,
+    poly: `<svg ${common}><path d="M12 4l7 5-3 9H8L5 9z"/></svg>`,
+    text: `<svg ${common}><path d="M4 6h16"/><path d="M12 6v14"/><path d="M8 10h8"/></svg>`,
+    erase: `<svg ${common}><path d="M7 16l7-7 4 4-7 7H7l-2-2z"/><path d="M14 9l3-3 4 4-3 3"/><path d="M4 20h10"/></svg>`,
+    undo: `<svg ${common}><path d="M10 7L5 12l5 5"/><path d="M6 12h8a5 5 0 1 1 0 10h-1"/></svg>`,
+    redo: `<svg ${common}><path d="M14 7l5 5-5 5"/><path d="M18 12h-8a5 5 0 1 0 0 10h1"/></svg>`,
+    clear: `<svg ${common}><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>`,
+    save: `<svg ${common}><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v6h8"/><path d="M9 20v-6h6v6"/></svg>`,
+    load: `<svg ${common}><path d="M3 19V8a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9"/><path d="M3 19l2.2-6h15.6L19 19z"/><path d="M12 9v6"/><path d="M9.5 12.5 12 15l2.5-2.5"/></svg>`,
+    png: `<svg ${common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="M6 17l4-4 3 3 3-4 2 5"/></svg>`,
+    pdf: `<svg ${common}><path d="M6 3h9l5 5v13H6z"/><path d="M15 3v5h5"/><path d="M8 14h8"/><path d="M8 18h5"/></svg>`,
+    under: `<svg ${common}><path d="M4 7h16"/><path d="M12 7v10"/><path d="M8 13l4 4 4-4"/></svg>`,
+    finish: `<svg ${common}><path d="M5 13l4 4L19 7"/></svg>`
+  };
+  return icons[name] || `<svg ${common}><circle cx="12" cy="12" r="8"/></svg>`;
+}
+
+function injectToolbarIconStyles(){
+  if (document.getElementById('toolbarIconUiPatch')) return;
+  const style = document.createElement('style');
+  style.id = 'toolbarIconUiPatch';
+  style.textContent = `
+    .toolbarRow{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+    .toolbarRow button.iconOnlyBtn{width:36px;min-width:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;gap:0;position:relative;overflow:visible}
+    .toolbarRow button.iconOnlyBtn svg{width:18px;height:18px}
+    .toolbarRow button.labelIconBtn{display:inline-flex;align-items:center;gap:.4rem}
+    .toolbarRow button.labelIconBtn svg{width:16px;height:16px;flex:0 0 auto}
+    .toolbarRow button.textOnlyBtn{display:inline-flex;align-items:center;justify-content:center;gap:0;padding:0 .65rem;min-width:56px;font-weight:600}
+    .toolbarRow button.iconOnlyBtn:hover,.toolbarRow button.labelIconBtn:hover,.toolbarRow button.textOnlyBtn:hover{transform:translateY(-1px)}
+    .toolbarRow button.iconOnlyBtn:hover{z-index:10001}
+    .toolbarRow button.iconOnlyBtn[disabled],.toolbarRow button.labelIconBtn[disabled],.toolbarRow button.textOnlyBtn[disabled]{transform:none}
+    .toolbarRow #polyToolOptions{grid-column:1 / -1; width:100%; max-width:100%; min-width:0; box-sizing:border-box; overflow:hidden; margin-top:4px}
+    .toolbarRow #polyToolOptions.hidden{display:none !important}
+    .toolbarRow #polyToolOptions input[type="range"]{width:100%; min-width:0; max-width:100%; box-sizing:border-box}
+    .toolbarRow button.iconOnlyBtn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);top:auto;transform:translateX(-50%);background:rgba(20,20,24,.95);color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;line-height:1;white-space:nowrap;pointer-events:none;z-index:9999;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+    .toolbarRow button.iconOnlyBtn[data-tip]:hover::before{content:"";position:absolute;left:50%;bottom:calc(100% + 1px);top:auto;transform:translateX(-50%);border:4px solid transparent;border-top-color:rgba(20,20,24,.95);pointer-events:none;z-index:9999}
+  `;
+  document.head.appendChild(style);
+}
+
+function iconizeButton(btn, { icon, label, iconOnly = false, textOnly = false } = {}){
+  if (!btn) return;
+  const text = label || btn.getAttribute('aria-label') || btn.title || (btn.textContent || '').trim() || 'Button';
+  btn.setAttribute('aria-label', text);
+  btn.title = text;
+  btn.dataset.tip = text;
+  btn.classList.remove('iconOnlyBtn','labelIconBtn','textOnlyBtn');
+  if (textOnly){
+    btn.classList.add('textOnlyBtn');
+    delete btn.dataset.tip;
+    btn.textContent = text;
+  } else if (iconOnly){
+    btn.classList.add('iconOnlyBtn');
+    btn.innerHTML = dsSvgIcon(icon);
+  } else {
+    btn.classList.add('labelIconBtn');
+    delete btn.dataset.tip;
+    btn.innerHTML = `${dsSvgIcon(icon)}<span>${text}</span>`;
+  }
+}
+
+function applyToolbarUiOverhaul(){
+  injectToolbarIconStyles();
+  const toolIconMap = { select:'select', space:'space', path:'path', free:'free', poly:'poly', text:'text', erase:'erase' };
+  toolButtons.forEach(btn => {
+    const toolName = btn.dataset.tool || 'tool';
+    const nice = ({space:'Rectangle',path:'Path',free:'Free',poly:'Polygon',text:'Text',select:'Select',erase:'Erase'})[toolName] || toolName;
+    if (toolName === 'text') iconizeButton(btn, { label: 'Text', textOnly: true });
+    else iconizeButton(btn, { icon: toolIconMap[toolName] || 'select', label: nice, iconOnly: true });
+  });
+  iconizeButton(btnUndo, { icon:'undo', label:'Undo', iconOnly:true });
+  iconizeButton(btnRedo, { icon:'redo', label:'Redo', iconOnly:true });
+  iconizeButton(btnClear, { icon:'clear', label:'Clear all', iconOnly:true });
+  iconizeButton(btnSaveMap, { icon:'save', label:'Save map', iconOnly:true });
+  iconizeButton(btnLoadMap, { icon:'load', label:'Load map', iconOnly:true });
+  iconizeButton(btnUnder, { icon:'under', label:'Draw under', iconOnly:true });
+  iconizeButton(btnFinish, { icon:'finish', label:'Finish tool', iconOnly:true });
+  iconizeButton(btnExport, { icon:'png', label:'PNG', iconOnly:false });
+  iconizeButton(btnPDF, { icon:'pdf', label:'PDF', iconOnly:false });
+}
+
 // controls
 const gridSize = document.getElementById("gridSize")
 const corridorWidth = document.getElementById("corridorWidth")
@@ -178,6 +266,7 @@ const hatchDensity = document.getElementById("hatchDensity")
 const hatchOpacity = document.getElementById("hatchOpacity")
 const hatchColor = document.getElementById("hatchColor")
 const hatchDepth = document.getElementById("hatchDepth")
+applyToolbarUiOverhaul()
 const snapStrength = document.getElementById("snapStrength")
 const propSnapToggle = document.getElementById("propSnapToggle")
 const showTextPreview = document.getElementById("showTextPreview")
