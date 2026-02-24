@@ -436,6 +436,8 @@ let dragPropId = null
 let selectedPropId = null
 let propTransformDrag = null
 let placedProps = []          // runtime-only for now (local asset URLs are session-based)
+let propClipboard = null
+let propClipboardPasteCount = 0
 const propImageCache = new Map()
 var placedTexts = []
 var selectedTextId = null
@@ -1005,6 +1007,49 @@ function duplicatePlacedPropById(id, opts = {}){
   syncTextPanelVisibility()
   return copy
 }
+
+function copySelectedPropToClipboard(){
+  const src = getPlacedPropById(selectedPropId)
+  if (!src) return false
+  const clean = normalizePlacedPropObj(src)
+  if (!clean || !clean.url) return false
+  propClipboard = {
+    prop: { ...clean, id: undefined },
+    copiedAt: Date.now()
+  }
+  propClipboardPasteCount = 0
+  return true
+}
+
+function pastePropFromClipboard(opts = {}){
+  if (!propClipboard || !propClipboard.prop) return null
+  const base = normalizePlacedPropObj(propClipboard.prop)
+  if (!base || !base.url) return null
+  const grid = Math.max(1, Number(dungeon.gridSize) || 32)
+  const step = Math.max(4, (typeof subGrid === 'function' ? subGrid() : (grid / 2)))
+  const serial = Math.max(1, Number(opts.serial) || (propClipboardPasteCount + 1))
+  let x = (Number(base.x) || 0) + step * serial
+  let y = (Number(base.y) || 0) + step * serial
+  if (getPropSnapEnabled()) {
+    const snapped = snapPropMoveWorldPoint({ x, y })
+    x = snapped.x; y = snapped.y
+  }
+  const pasted = {
+    ...base,
+    id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random()),
+    x,
+    y
+  }
+  placedProps.push(pasted)
+  propClipboardPasteCount = serial
+  selectedPropId = pasted.id
+  selectedTextId = null
+  selectedShapeId = null
+  setTool('select')
+  syncTextPanelVisibility()
+  return pasted
+}
+
 
 function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride = null){
   const shadow = dungeon.style?.shadow
@@ -2914,12 +2959,28 @@ canvas.addEventListener("wheel", (e)=>{
 
 window.addEventListener("keydown", (e)=>{
   if (textEditorState && e.key === "Escape") { e.preventDefault(); cancelActiveTextEditor(); return }
+  const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase()
+  const activeEditable = !!(document.activeElement && document.activeElement.isContentEditable)
   const accel = e.metaKey || e.ctrlKey
   if (accel && !e.altKey){
     const k = (e.key || "").toLowerCase()
     if (k === "z" && e.shiftKey){ e.preventDefault(); redo(); return }
     if (k === "z"){ e.preventDefault(); undo(); return }
     if (k === "y"){ e.preventDefault(); redo(); return }
+    if ((k === "c" || k === "x" || k === "v") && (tag === "input" || tag === "textarea" || (document.activeElement && document.activeElement.isContentEditable))) return
+    if (k === "c" && selectedPropId){
+      e.preventDefault()
+      copySelectedPropToClipboard()
+      return
+    }
+    if (k === "v"){
+      if (propClipboard && propClipboard.prop){
+        e.preventDefault()
+        pushUndo()
+        pastePropFromClipboard()
+        return
+      }
+    }
     if (k === "d" && selectedPropId){
       e.preventDefault()
       pushUndo()
@@ -2928,8 +2989,7 @@ window.addEventListener("keydown", (e)=>{
       return
     }
   }
-  const tag = (document.activeElement && document.activeElement.tagName || "").toLowerCase()
-  if (tag === "input" || tag === "textarea") return
+  if (tag === "input" || tag === "textarea" || activeEditable) return
   if ((e.key === "t" || e.key === "T") && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); setTool("text") ; return }
   if (e.key === "Enter" && selectedTextId) { e.preventDefault(); if (!textEditorState) { pushUndo(); openTextEditorFor(selectedTextId, { isNew:false, undoPushed:true }) } return }
   if ((e.key === "Delete" || e.key === "Backspace") && selectedPropId){
