@@ -22,18 +22,32 @@
       "gridH": 0.42
     },
     {
+      "id": "door-locked-1",
+      "name": "Locked Door 1x",
+      "src": "door-locked-span.svg",
+      "gridW": 1.0,
+      "gridH": 0.42
+    },
+    {
+      "id": "door-locked-2",
+      "name": "Locked Door 2x",
+      "src": "door-locked-span.svg",
+      "gridW": 2.0,
+      "gridH": 0.42
+    },
+    {
+      "id": "door-locked-3",
+      "name": "Locked Door 3x",
+      "src": "door-locked-span.svg",
+      "gridW": 3.0,
+      "gridH": 0.42
+    },
+    {
       "id": "door-arch",
       "name": "Arch Door",
       "src": "door-arch.svg",
       "gridW": 0.95,
       "gridH": 0.95
-    },
-    {
-      "id": "door-locked",
-      "name": "Door 1x Locked",
-      "src": "door-locked-span.svg",
-      "gridW": 1.0,
-      "gridH": 0.42
     },
     {
       "id": "bed",
@@ -76,6 +90,20 @@
       "src": "column.svg",
       "gridW": 0.8,
       "gridH": 0.8
+    },
+    {
+      "id": "grate-square",
+      "name": "Sewer Grate Square",
+      "src": "grate-square.svg",
+      "gridW": 0.9,
+      "gridH": 0.9
+    },
+    {
+      "id": "grate-round",
+      "name": "Sewer Grate Round",
+      "src": "grate-round.svg",
+      "gridW": 0.9,
+      "gridH": 0.9
     },
     {
       "id": "crate",
