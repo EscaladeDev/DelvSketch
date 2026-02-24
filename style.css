@@ -2831,9 +2831,9 @@ body[data-theme="dark"] .pdfFormGrid > label{
 }
 
 
-.pngExportWarning{margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;line-height:1.35;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);color:var(--muted,#c7c7c7)}
-.pngExportWarning.warn{border-color:rgba(255,200,80,.35);background:rgba(255,200,80,.08);color:#ffd37a}
-.pngExportWarning.error{border-color:rgba(255,90,90,.4);background:rgba(255,90,90,.1);color:#ff9d9d}
+.pngExportWarning{margin-top:10px;padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.4;background:#f6f7f9;border:1px solid #d9dde3;color:#3a4048}
+.pngExportWarning.warn{border-color:#f0c36d;background:#fff6e6;color:#8a5a00;font-weight:600}
+.pngExportWarning.error{border-color:#e79a9a;background:#fff0f0;color:#a22626;font-weight:600}
 
 
 /* export progress overlay */
