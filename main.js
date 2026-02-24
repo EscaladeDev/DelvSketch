@@ -183,7 +183,7 @@ function injectToolbarIconStyles(){
   const style = document.createElement('style');
   style.id = 'toolbarIconUiPatch';
   style.textContent = `
-    .toolbarRow{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+    .toolbarRow{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr)) !important;align-items:start;grid-auto-flow:row;grid-auto-rows:auto;gap:12px}.toolbarRow > *{min-width:0}.toolbarRow > button{width:100%}
     .toolbarRow button.iconOnlyBtn{width:36px;min-width:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;gap:0;position:relative;overflow:visible}
     .toolbarRow button.iconOnlyBtn svg{width:18px;height:18px}
     .toolbarRow button.labelIconBtn{display:inline-flex;align-items:center;gap:.4rem}
@@ -192,9 +192,13 @@ function injectToolbarIconStyles(){
     .toolbarRow button.iconOnlyBtn:hover,.toolbarRow button.labelIconBtn:hover,.toolbarRow button.textOnlyBtn:hover{transform:translateY(-1px)}
     .toolbarRow button.iconOnlyBtn:hover{z-index:10001}
     .toolbarRow button.iconOnlyBtn[disabled],.toolbarRow button.labelIconBtn[disabled],.toolbarRow button.textOnlyBtn[disabled]{transform:none}
-    .toolbarRow #polyToolOptions{grid-column:1 / -1; width:100%; max-width:100%; min-width:0; box-sizing:border-box; overflow:hidden; margin-top:4px}
-    .toolbarRow #polyToolOptions.hidden{display:none !important}
-    .toolbarRow #polyToolOptions input[type="range"]{width:100%; min-width:0; max-width:100%; box-sizing:border-box}
+    .toolbarTools #polyToolOptions{display:block; width:100% !important; max-width:100% !important; min-width:0; box-sizing:border-box; overflow:hidden; margin-top:10px; justify-self:stretch; align-self:start; padding:12px; }
+    .toolbarTools #polyToolOptions.hidden{display:none !important}
+    .toolbarTools #polyToolOptions .row,.toolbarTools #polyToolOptions .toolbarRow,.toolbarTools #polyToolOptions .fieldRow{display:block !important;grid-template-columns:none !important}
+    .toolbarTools #polyToolOptions label{display:block; width:100%; min-width:0}
+    .toolbarTools #polyToolOptions .toolInlineRange{display:grid !important; grid-template-columns:1fr !important; gap:8px; width:100%; min-width:0}
+    .toolbarTools #polyToolOptions .toolInlineRange > span{display:block}
+    .toolbarTools #polyToolOptions input[type="range"]{display:block;width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0}
     .toolbarRow button.iconOnlyBtn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);top:auto;transform:translateX(-50%);background:rgba(20,20,24,.95);color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;line-height:1;white-space:nowrap;pointer-events:none;z-index:9999;box-shadow:0 6px 18px rgba(0,0,0,.18)}
     .toolbarRow button.iconOnlyBtn[data-tip]:hover::before{content:"";position:absolute;left:50%;bottom:calc(100% + 1px);top:auto;transform:translateX(-50%);border:4px solid transparent;border-top-color:rgba(20,20,24,.95);pointer-events:none;z-index:9999}
   `;
