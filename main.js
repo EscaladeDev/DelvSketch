@@ -265,6 +265,7 @@ const themeColorMeta = document.querySelector('meta[name="theme-color"]')
 const shadowOn = document.getElementById("shadowOn")
 const shadowOpacity = document.getElementById("shadowOpacity")
 const shadowColor = document.getElementById("shadowColor")
+let shadowAllPropsToggle = null
 const hatchOn = document.getElementById("hatchOn")
 const hatchDensity = document.getElementById("hatchDensity")
 const hatchOpacity = document.getElementById("hatchOpacity")
@@ -314,6 +315,28 @@ function toggleUiTheme(){
   applyUiTheme("light")
 }
 
+function ensureGlobalPropShadowToggleUi(){
+  if (shadowAllPropsToggle && document.body.contains(shadowAllPropsToggle)) return shadowAllPropsToggle
+  const shadowSectionBody = shadowOn?.closest?.(".styleSectionBody") || shadowOn?.closest?.("details")?.querySelector?.(".styleSectionBody")
+  if (!shadowSectionBody) return null
+  let existing = document.getElementById("shadowAllPropsOn")
+  if (existing) { shadowAllPropsToggle = existing; return existing }
+  const label = document.createElement("label")
+  label.className = "inline"
+  label.style.marginTop = "2px"
+  const span = document.createElement("span")
+  span.textContent = "Shadows on all props"
+  const input = document.createElement("input")
+  input.type = "checkbox"
+  input.id = "shadowAllPropsOn"
+  input.checked = true
+  label.appendChild(span)
+  label.appendChild(input)
+  shadowSectionBody.appendChild(label)
+  shadowAllPropsToggle = input
+  return input
+}
+
 function updateHistoryButtons(){
   const canUndo = undoStack.length > 0
   const canRedo = redoStack.length > 0
@@ -359,6 +382,9 @@ puck.addEventListener("pointerdown", (e)=>{ puck.setPointerCapture(e.pointerId);
 puck.addEventListener("pointermove", (e)=>{ if (e.buttons) updateShadowFromPuck(e) })
 
 function syncUI(){
+  if (!dungeon.style.shadow || typeof dungeon.style.shadow !== "object") dungeon.style.shadow = {}
+  if (typeof dungeon.style.shadow.allPropsEnabled !== "boolean") dungeon.style.shadow.allPropsEnabled = true
+  const __shadowAllPropsToggle = ensureGlobalPropShadowToggleUi()
   gridSize.value = dungeon.gridSize
   corridorWidth.value = dungeon.style.corridorWidth
   wallWidth.value = dungeon.style.wallWidth
@@ -373,6 +399,7 @@ function syncUI(){
   shadowOn.checked = dungeon.style.shadow.enabled
   shadowOpacity.value = dungeon.style.shadow.opacity
   if (shadowColor) shadowColor.value = dungeon.style.shadow.color || "#000000"
+  if (__shadowAllPropsToggle) __shadowAllPropsToggle.checked = (dungeon.style.shadow.allPropsEnabled !== false)
   hatchOn.checked = dungeon.style.hatch.enabled
   hatchDensity.value = Math.max(0.25, Number(dungeon.style.hatch.density) || 0.25)
   hatchOpacity.value = dungeon.style.hatch.opacity
@@ -432,6 +459,8 @@ if (polySides) {
 shadowOn.addEventListener("change", () => dungeon.style.shadow.enabled = shadowOn.checked)
 shadowOpacity.addEventListener("input", () => dungeon.style.shadow.opacity = Number(shadowOpacity.value))
 if (shadowColor) shadowColor.addEventListener("input", () => dungeon.style.shadow.color = shadowColor.value)
+const __shadowAllPropsToggleInit = ensureGlobalPropShadowToggleUi()
+if (__shadowAllPropsToggleInit) __shadowAllPropsToggleInit.addEventListener("change", () => { dungeon.style.shadow.allPropsEnabled = !!__shadowAllPropsToggleInit.checked })
 hatchOn.addEventListener("change", () => dungeon.style.hatch.enabled = hatchOn.checked)
 hatchDensity.addEventListener("input", () => dungeon.style.hatch.density = Math.max(0.25, Number(hatchDensity.value) || 0.25))
 hatchOpacity.addEventListener("input", () => dungeon.style.hatch.opacity = Number(hatchOpacity.value))
@@ -511,6 +540,8 @@ function normalizePlacedPropObj(p){
     baseH,
     scale,
     rot: safeNum(p?.rot, 0),
+    flipX: p?.flipX === true,
+    flipY: p?.flipY === true,
     shadowDisabled: p?.shadowDisabled === true
   }
 }
@@ -1075,6 +1106,8 @@ function placePropAtWorld(prop, world){
     baseH: h,
     scale: 1,
     rot: rotatePropAngleMaybeSnap(Number(prop.rot || 0) || 0),
+    flipX: false,
+    flipY: false,
     shadowDisabled: false
   }
   placedProps.push(placed)
@@ -1150,7 +1183,8 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
   const alpha = Math.max(0, Math.min(1, Number(shadow.opacity ?? 0.34)))
   if (alpha <= 0) return null
   const activeZoom = Number.isFinite(Number(zoomOverride)) ? Number(zoomOverride) : camera.zoom
-  const lenPx = Math.max(0, Number(shadow.length || 0) * activeZoom)
+  const propLenScale = 0.5 // prop shadows are half the wall-shadow length
+  const lenPx = Math.max(0, Number(shadow.length || 0) * propLenScale * activeZoom)
   const globalDir = shadow.dir || { x: 0.707, y: 0.707 }
   const localDir = rotate({ x: globalDir.x || 0, y: globalDir.y || 0 }, -(Number(propInst?.rot || 0) || 0))
   const dx = Math.round((localDir.x || 0) * lenPx)
@@ -1161,7 +1195,9 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
   // Extra pad and feathering make thin SVG line props cast a visible shadow.
   const feather = Math.max(1, Math.round(Math.min(w, h) * 0.04))
   const pad = Math.max(6, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) + feather + 4))
-  const key = [w,h,dx,dy,shadow.color||'#000000',alpha,feather].join('|')
+  const flipX = propInst?.flipX === true
+  const flipY = propInst?.flipY === true
+  const key = [w,h,dx,dy,shadow.color||'#000000',alpha,feather, flipX?1:0, flipY?1:0].join('|')
   const cached = propShadowRuntimeCache.get(propInst)
   if (cached && cached.key === key && cached.canvas) return cached
 
@@ -1172,7 +1208,11 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
   const actx = alphaC.getContext('2d')
   actx.clearRect(0,0,cw,ch)
   actx.imageSmoothingEnabled = false
-  actx.drawImage(img, pad, pad, w, h)
+  actx.save()
+  actx.translate(pad + w/2, pad + h/2)
+  actx.scale(flipX ? -1 : 1, flipY ? -1 : 1)
+  actx.drawImage(img, -w/2, -h/2, w, h)
+  actx.restore()
 
   // Slightly dilate the mask so stroke-based SVG icons (doors/chests/etc.) don't produce near-invisible shadows.
   if (feather > 0){
@@ -1290,10 +1330,11 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
   if (!Array.isArray(placedProps) || placedProps.length === 0) return
 
   const shadowMasterEnabled = !!(dungeon.style?.shadow?.enabled)
-  const shadowMaskC = shadowMasterEnabled ? getPropLayerTemp('shadowMask', targetW, targetH) : null
-  const propOccC = shadowMasterEnabled ? getPropLayerTemp('propOcc', targetW, targetH) : null
-  const wallOccC = shadowMasterEnabled ? getPropLayerTemp('wallOcc', targetW, targetH) : null
-  const shadowTintC = shadowMasterEnabled ? getPropLayerTemp('shadowTint', targetW, targetH) : null
+  const propShadowsGloballyEnabled = shadowMasterEnabled && (dungeon.style?.shadow?.allPropsEnabled !== false)
+  const shadowMaskC = propShadowsGloballyEnabled ? getPropLayerTemp('shadowMask', targetW, targetH) : null
+  const propOccC = propShadowsGloballyEnabled ? getPropLayerTemp('propOcc', targetW, targetH) : null
+  const wallOccC = propShadowsGloballyEnabled ? getPropLayerTemp('wallOcc', targetW, targetH) : null
+  const shadowTintC = propShadowsGloballyEnabled ? getPropLayerTemp('shadowTint', targetW, targetH) : null
   const smctx = shadowMaskC ? shadowMaskC.getContext('2d', { willReadFrequently: true }) : null
   const poctx = propOccC ? propOccC.getContext('2d') : null
   const woctx = wallOccC ? wallOccC.getContext('2d', { willReadFrequently: true }) : null
@@ -1316,7 +1357,7 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
   }
 
   // Pass 1: accumulate prop shadow masks (union target) and total prop occupancy.
-  if (shadowMasterEnabled && smctx && poctx){
+  if (propShadowsGloballyEnabled && smctx && poctx){
     for (const a of placedProps){
       if (!a || !a.url) continue
       const propMeta = getPropById(a.propId)
@@ -1332,6 +1373,7 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
         poctx.save()
         poctx.translate(c.x, c.y)
         if (a.rot) poctx.rotate(a.rot)
+        if (a.flipX === true || a.flipY === true) poctx.scale(a.flipX === true ? -1 : 1, a.flipY === true ? -1 : 1)
         poctx.drawImage(img, -w/2, -h/2, w, h)
         poctx.restore()
       }
@@ -1343,6 +1385,8 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
       smctx.save()
       smctx.translate(c.x, c.y)
       if (a.rot) smctx.rotate(a.rot)
+      // Intentionally do not apply prop flip to the cast-shadow draw transform;
+      // flipping the prop should not reverse the world-space shadow direction.
       smctx.drawImage(shadowLayer.canvas, -w/2 - shadowLayer.pad, -h/2 - shadowLayer.pad)
       smctx.restore()
     }
@@ -1363,8 +1407,20 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
     smctx.drawImage(propOccC, 0, 0)
     smctx.globalCompositeOperation = 'source-over'
 
-    // Max-merge prop shadow with the already-rendered wall shadow in screen space.
-    // We compute a delta alpha such that source-over produces finalAlpha = max(wallAlpha, propAlpha).
+    // Clip prop shadows to dungeon interior so they cannot leak outside walls.
+    if (cacheForWalls?.maskCanvas && cacheForWalls?.bounds && cacheForWalls?.ppu) {
+      try {
+        woctx && woctx.clearRect(0,0,targetW,targetH)
+        if (woctx){
+          drawCompiledLayerToScreen(woctx, cacheForWalls.maskCanvas, cacheForWalls, targetCamera)
+          smctx.globalCompositeOperation = 'destination-in'
+          smctx.drawImage(wallOccC, 0, 0)
+          smctx.globalCompositeOperation = 'source-over'
+        }
+      } catch {}
+    }
+
+    // Merge with wall shadow into a single flat-darkness result and bridge tiny gaps.
     if (woctx && cacheForWalls?.shadowCanvas && cacheForWalls?.bounds && cacheForWalls?.ppu) {
       woctx.clearRect(0,0,targetW,targetH)
       drawCompiledLayerToScreen(woctx, cacheForWalls.shadowCanvas, cacheForWalls, targetCamera)
@@ -1373,15 +1429,56 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
         const wallImg = woctx.getImageData(0, 0, targetW, targetH)
         const md = maskImg.data
         const wd = wallImg.data
+        const npx = targetW * targetH
         const shadowOpacity = Math.max(0.001, Math.min(1, Number(dungeon.style?.shadow?.opacity ?? 0.34)))
-        for (let i = 0; i < md.length; i += 4) {
-          const maskA = md[i+3] / 255
-          if (maskA <= 0) { md[i+3] = 0; continue }
-          const propA = Math.max(0, Math.min(1, maskA * shadowOpacity))
-          const wallA = wd[i+3] / 255 // already includes wall shadow style opacity when rendered
-          if (propA <= wallA + 1e-4) { md[i+3] = 0; continue }
-          const denom = Math.max(1e-4, 1 - wallA)
-          const addA = Math.max(0, Math.min(1, (propA - wallA) / denom))
+        const wallOccThreshold = 4
+        const propOcc = new Uint8Array(npx)
+        const wallOcc = new Uint8Array(npx)
+        let k = 0
+        for (let i = 0; i < md.length; i += 4, k++) {
+          propOcc[k] = md[i+3] > 0 ? 1 : 0
+          wallOcc[k] = wd[i+3] >= wallOccThreshold ? 1 : 0
+        }
+        // Combined occupancy = wall OR prop, then close tiny gaps (radius 1, 8-neighbor).
+        let comb = new Uint8Array(npx)
+        for (let i = 0; i < npx; i++) comb[i] = (propOcc[i] | wallOcc[i])
+        const dil = new Uint8Array(npx)
+        for (let y = 0; y < targetH; y++) {
+          const y0 = Math.max(0, y - 1), y1 = Math.min(targetH - 1, y + 1)
+          for (let x = 0; x < targetW; x++) {
+            let on = 0
+            const x0 = Math.max(0, x - 1), x1 = Math.min(targetW - 1, x + 1)
+            for (let yy = y0; yy <= y1 && !on; yy++) {
+              let idx = yy * targetW + x0
+              for (let xx = x0; xx <= x1; xx++, idx++) { if (comb[idx]) { on = 1; break } }
+            }
+            dil[y * targetW + x] = on
+          }
+        }
+        const closed = new Uint8Array(npx)
+        for (let y = 0; y < targetH; y++) {
+          const y0 = Math.max(0, y - 1), y1 = Math.min(targetH - 1, y + 1)
+          for (let x = 0; x < targetW; x++) {
+            let on = 1
+            const x0 = Math.max(0, x - 1), x1 = Math.min(targetW - 1, x + 1)
+            for (let yy = y0; yy <= y1 && on; yy++) {
+              let idx = yy * targetW + x0
+              for (let xx = x0; xx <= x1; xx++, idx++) { if (!dil[idx]) { on = 0; break } }
+            }
+            closed[y * targetW + x] = on
+          }
+        }
+
+        // Emit only the delta needed over the already-drawn wall shadow, preserving constant darkness.
+        k = 0
+        for (let i = 0; i < md.length; i += 4, k++) {
+          const wallA = wd[i+3] / 255
+          const targetA = closed[k] ? shadowOpacity : 0
+          let addA = 0
+          if (targetA > wallA + 1e-4) {
+            const denom = Math.max(1e-4, 1 - wallA)
+            addA = Math.max(0, Math.min(1, (targetA - wallA) / denom))
+          }
           md[i] = 0; md[i+1] = 0; md[i+2] = 0
           md[i+3] = Math.round(addA * 255)
         }
@@ -1429,6 +1526,7 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
     targetCtx.save()
     targetCtx.translate(c.x, c.y)
     if (a.rot) targetCtx.rotate(a.rot)
+    if (a.flipX === true || a.flipY === true) targetCtx.scale(a.flipX === true ? -1 : 1, a.flipY === true ? -1 : 1)
 
     targetCtx.globalAlpha = 1
     if (img.complete && img.naturalWidth > 0){
@@ -2998,6 +3096,99 @@ window.addEventListener("pointermove", (e)=>{
   if (!pointInsideCanvasClient(e.clientX, e.clientY)) return
   lastCursorScreen = getPointerPos(e)
 })
+
+let propContextMenuEl = null
+let propContextMenuTargetId = null
+function ensurePropContextMenu(){
+  if (propContextMenuEl) return propContextMenuEl
+  const m = document.createElement('div')
+  m.id = 'prop-context-menu'
+  m.setAttribute('role', 'menu')
+  m.setAttribute('aria-hidden', 'true')
+  m.style.position = 'fixed'
+  m.style.zIndex = '9999'
+  m.style.minWidth = '190px'
+  m.style.background = 'rgba(255,255,255,0.98)'
+  m.style.border = '1px solid rgba(15,23,42,0.12)'
+  m.style.borderRadius = '12px'
+  m.style.boxShadow = '0 12px 30px rgba(15,23,42,0.16)'
+  m.style.padding = '6px'
+  m.style.display = 'none'
+  m.style.backdropFilter = 'blur(8px)'
+  const mkBtn = (action, label)=>{
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.dataset.action = action
+    b.setAttribute('role', 'menuitem')
+    b.style.display = 'block'
+    b.style.width = '100%'
+    b.style.textAlign = 'left'
+    b.style.background = 'transparent'
+    b.style.color = '#111827'
+    b.style.border = '0'
+    b.style.borderRadius = '8px'
+    b.style.padding = '9px 10px'
+    b.style.cursor = 'pointer'
+    b.style.font = '500 13px system-ui, sans-serif'
+    b.textContent = label
+    b.addEventListener('mouseenter', ()=>{ b.style.background = 'rgba(15,23,42,0.06)' })
+    b.addEventListener('mouseleave', ()=>{ b.style.background = 'transparent' })
+    return b
+  }
+  m.appendChild(mkBtn('flip-h', 'Flip Horizontally'))
+  m.appendChild(mkBtn('flip-v', 'Flip Vertically'))
+  const sep = document.createElement('div')
+  sep.style.height = '1px'
+  sep.style.margin = '6px 4px'
+  sep.style.background = 'rgba(15,23,42,0.08)'
+  m.appendChild(sep)
+  m.appendChild(mkBtn('toggle-shadow', 'Disable Shadow'))
+  m.addEventListener('contextmenu', (e)=> e.preventDefault())
+  m.addEventListener('click', (e)=>{
+    const btn = e.target && e.target.closest ? e.target.closest('button[data-action]') : null
+    if (!btn) return
+    const p = getPlacedPropById(propContextMenuTargetId || selectedPropId)
+    if (!p) { hidePropContextMenu(); return }
+    pushUndo()
+    if (btn.dataset.action === 'flip-h') p.flipX = !(p.flipX === true)
+    else if (btn.dataset.action === 'flip-v') p.flipY = !(p.flipY === true)
+    else if (btn.dataset.action === 'toggle-shadow') p.shadowDisabled = !(p.shadowDisabled === true)
+    hidePropContextMenu()
+  })
+  document.body.appendChild(m)
+  propContextMenuEl = m
+  return m
+}
+function hidePropContextMenu(){
+  if (!propContextMenuEl) return
+  propContextMenuEl.style.display = 'none'
+  propContextMenuEl.setAttribute('aria-hidden', 'true')
+  propContextMenuTargetId = null
+}
+function showPropContextMenuForProp(prop, clientX, clientY){
+  if (!prop) return false
+  const m = ensurePropContextMenu()
+  propContextMenuTargetId = prop.id
+  const shadowBtn = m.querySelector('button[data-action="toggle-shadow"]')
+  if (shadowBtn) shadowBtn.textContent = (prop.shadowDisabled === true) ? 'Enable Shadow' : 'Disable Shadow'
+  m.style.display = 'block'
+  m.setAttribute('aria-hidden', 'false')
+  const pad = 8
+  const r = m.getBoundingClientRect()
+  let x = Math.round(clientX), y = Math.round(clientY)
+  if (x + r.width > window.innerWidth - pad) x = Math.max(pad, window.innerWidth - pad - r.width)
+  if (y + r.height > window.innerHeight - pad) y = Math.max(pad, window.innerHeight - pad - r.height)
+  m.style.left = x + 'px'
+  m.style.top = y + 'px'
+  return true
+}
+window.addEventListener('pointerdown', (e)=>{
+  if (!propContextMenuEl || propContextMenuEl.style.display === 'none') return
+  if (propContextMenuEl.contains(e.target)) return
+  hidePropContextMenu()
+}, true)
+window.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') hidePropContextMenu() })
+
 canvas.addEventListener("contextmenu", (e)=>{
   e.preventDefault()
   const screen = getPointerPos(e)
@@ -3007,13 +3198,12 @@ canvas.addEventListener("contextmenu", (e)=>{
     commitActiveTextEditor()
   }
   const picked = pickPlacedPropAtWorld(world)
-  if (!picked) return
-  pushUndo()
-  picked.shadowDisabled = !(picked.shadowDisabled === true)
+  if (!picked) { hidePropContextMenu(); return }
   selectedPropId = picked.id
   selectedTextId = null
   propTransformDrag = null
   syncTextPanelVisibility()
+  showPropContextMenuForProp(picked, e.clientX, e.clientY)
 })
 canvas.addEventListener("dragover", (e)=>{
   if (!getDraggedPropIdFromEvent(e)) return
@@ -3157,6 +3347,7 @@ function hitHandle(worldPt, sh){
 canvas.addEventListener("pointerdown", (e)=>{
   canvas.setPointerCapture(e.pointerId)
   pointers.set(e.pointerId, getPointerPos(e))
+  if (e.button !== 2) hidePropContextMenu()
 
   if (e.pointerType==="mouse" && (e.button===1 || e.button===2)){
     panDrag = { start:{x:e.clientX,y:e.clientY}, cam:{x:camera.x,y:camera.y} }

@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
-  <rect x="14" y="10" width="68" height="76" rx="6" fill="#ffffff" stroke="#111111" stroke-width="4"/>
-  <rect x="28" y="38" width="40" height="34" rx="3" fill="#ffffff" stroke="#111111" stroke-width="4"/>
-  <path d="M48 65c10-6 6-14 2-18-1 5-6 7-8 11-2 3 0 7 6 7z" fill="#111111" opacity="0.9"/>
-  <path d="M33 24h30" stroke="#111111" stroke-width="3" stroke-linecap="round"/>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 96 96" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;"><path d="M82,16l0,64c0,3.311 -2.689,6 -6,6l-56,0c-3.311,0 -6,-2.689 -6,-6l0,-64c0,-3.311 2.689,-6 6,-6l56,0c3.311,0 6,2.689 6,6Z" style="fill:#fff;stroke:#111;stroke-width:3px;"/><path d="M68,41l0,28c0,1.656 -1.344,3 -3,3l-34,0c-1.656,0 -3,-1.344 -3,-3l0,-28c0,-1.656 1.344,-3 3,-3l34,0c1.656,0 3,1.344 3,3Z" style="fill:#fff;stroke:#111;stroke-width:3px;"/><path d="M48,65c10,-6 6,-14 2,-18c-1,5 -6,7 -8,11c-2,3 0,7 6,7Z" style="fill:#111;fill-opacity:0.9;fill-rule:nonzero;"/><path d="M33,24l30,0" style="fill:none;fill-rule:nonzero;stroke:#111;stroke-width:3px;stroke-linecap:round;"/></svg>
