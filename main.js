@@ -125,6 +125,7 @@ const btnRedo = document.getElementById("btnRedo")
 const btnClear = document.getElementById("btnClear")
 const btnSaveMap = document.getElementById("btnSaveMap")
 const btnLoadMap = document.getElementById("btnLoadMap")
+const btnBugReport = document.getElementById("btnBugReport")
 const fileLoadMap = document.getElementById("fileLoadMap")
 const btnPropsPick = document.getElementById("btnPropsPick")
 const btnPropsClear = document.getElementById("btnPropsClear")
@@ -203,6 +204,7 @@ function dsSvgIcon(name){
     load: `<svg ${common}><path d="M3 19V8a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9"/><path d="M3 19l2.2-6h15.6L19 19z"/><path d="M12 9v6"/><path d="M9.5 12.5 12 15l2.5-2.5"/></svg>`,
     png: `<svg ${common}><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="M6 17l4-4 3 3 3-4 2 5"/></svg>`,
     pdf: `<svg ${common}><path d="M6 3h9l5 5v13H6z"/><path d="M15 3v5h5"/><path d="M8 14h8"/><path d="M8 18h5"/></svg>`,
+    bug: `<svg ${common}><ellipse cx="12" cy="13" rx="5.5" ry="6.5"/><circle cx="12" cy="7.5" r="2.2"/><path d="M9 4.8 7.6 3.6"/><path d="M15 4.8l1.4-1.2"/><path d="M7 11H4.5"/><path d="M7 15H4.5"/><path d="M17 11h2.5"/><path d="M17 15h2.5"/><path d="M9.2 20.1 8 22"/><path d="M14.8 20.1 16 22"/></svg>`,
     under: `<svg ${common}><path d="M4 7h16"/><path d="M12 7v10"/><path d="M8 13l4 4 4-4"/></svg>`,
     finish: `<svg ${common}><path d="M5 13l4 4L19 7"/></svg>`
   };
@@ -272,6 +274,7 @@ function applyToolbarUiOverhaul(){
   iconizeButton(btnClear, { icon:'clear', label:'Clear all', iconOnly:true });
   iconizeButton(btnSaveMap, { icon:'save', label:'Save map', iconOnly:true });
   iconizeButton(btnLoadMap, { icon:'load', label:'Load map', iconOnly:true });
+  if (btnBugReport) iconizeButton(btnBugReport, { icon:'bug', label:'Bug Report', iconOnly:true });
   iconizeButton(btnUnder, { icon:'under', label:'Draw under', iconOnly:true });
   iconizeButton(btnFinish, { icon:'finish', label:'Finish tool', iconOnly:true });
   iconizeButton(btnExport, { icon:'png', label:'PNG', iconOnly:false });
@@ -2123,6 +2126,35 @@ function saveMapToFile(){
   }, 0)
 }
 
+function openBugReport(){
+  const versionText = (document.getElementById("btnCoverHome")?.textContent || "Dungeon Sketch").trim()
+  const body = [
+    "## Describe the bug",
+    "",
+    "A clear and concise description of what went wrong.",
+    "",
+    "## Steps to reproduce",
+    "",
+    "1. ",
+    "2. ",
+    "3. ",
+    "",
+    "## Expected behavior",
+    "",
+    "What did you expect to happen?",
+    "",
+    "## Environment",
+    `- Version: ${versionText}`,
+    `- Browser: ${navigator.userAgent}`,
+    `- Viewport: ${window.innerWidth}x${window.innerHeight}`
+  ].join("\n")
+  const params = new URLSearchParams({
+    title: "[Bug]: ",
+    body
+  })
+  window.open(`https://github.com/EscaladeDev/DungeonSketch/issues/new?${params.toString()}`, "_blank", "noopener")
+}
+
 async function loadMapFromFile(file){
   if (!file) return
   const text = await file.text()
@@ -2140,6 +2172,7 @@ btnUndo.addEventListener("click", undo)
 btnRedo.addEventListener("click", redo)
 if (btnSaveMap) btnSaveMap.addEventListener("click", saveMapToFile)
 if (btnLoadMap) btnLoadMap.addEventListener("click", () => fileLoadMap && fileLoadMap.click())
+if (btnBugReport) btnBugReport.addEventListener("click", openBugReport)
 if (btnDrawerToggle) btnDrawerToggle.addEventListener("click", toggleDrawer)
 if (btnDrawerCollapse) btnDrawerCollapse.addEventListener("click", toggleDrawer)
 if (drawerPeekTab) drawerPeekTab.addEventListener("click", () => setDrawerOpen(true))
