@@ -64,25 +64,40 @@
       "gridH": 1.0
     },
     {
-      "id": "chest",
-      "name": "Chest",
-      "src": "chest.svg",
+      "id": "chest-1",
+      "name": "Chest 1",
+      "src": "chest-1.svg",
       "gridW": 1.0,
       "gridH": 0.8
     },
     {
-      "id": "fireplace",
-      "name": "Fireplace",
-      "src": "fireplace.svg",
+      "id": "chest-2",
+      "name": "Chest 2",
+      "src": "chest-2.svg",
+      "gridW": 1.0,
+      "gridH": 0.8
+    },
+    {
+      "id": "brazier",
+      "name": "Brazier",
+      "src": "brazier.svg",
       "gridW": 1.1,
-      "gridH": 1.1
+      "gridH": 1.1,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
     },
     {
       "id": "stairs",
       "name": "Stairs",
       "src": "stairs.svg",
       "gridW": 1.5,
-      "gridH": 1.0
+      "gridH": 1.0,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
     },
     {
       "id": "column",
@@ -96,14 +111,22 @@
       "name": "Sewer Grate Square",
       "src": "grate-square.svg",
       "gridW": 0.9,
-      "gridH": 0.9
+      "gridH": 0.9,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
     },
     {
       "id": "grate-round",
       "name": "Sewer Grate Round",
       "src": "grate-round.svg",
       "gridW": 0.9,
-      "gridH": 0.9
+      "gridH": 0.9,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
     },
     {
       "id": "crate",
@@ -111,6 +134,35 @@
       "src": "crate.svg",
       "gridW": 0.8,
       "gridH": 0.8
+    },
+    {
+      "id": "heavy-crate",
+      "name": "Heavy Crate",
+      "src": "heavy-crate.svg",
+      "gridW": 0.8,
+      "gridH": 0.8
+    },
+    {
+      "id": "cobweb-1",
+      "name": "Cobweb 1",
+      "src": "cobweb-1.svg",
+      "gridW": 0.9,
+      "gridH": 0.9,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
+    },
+    {
+      "id": "cobweb-2",
+      "name": "Cobweb 2",
+      "src": "cobweb-2.svg",
+      "gridW": 0.9,
+      "gridH": 0.9,
+      "category": "floor",
+      "shadow": {
+        "mode": "none"
+      }
     }
   ]
 }

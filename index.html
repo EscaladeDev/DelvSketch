@@ -16,7 +16,7 @@
   
   <div class="hud appShellHud">
     <header class="appTopbar" aria-label="Tools and actions">
-      <div class="topbarTitle">Dungeon Sketch Alpha v0.10</div>
+      <button id="btnCoverHome" class="topbarTitle topbarTitleButton" type="button" title="Open cover page" aria-label="Open cover page">Dungeon Sketch Alpha v0.15</button>
 
       <div class="toolbarShell" role="group" aria-label="Main toolbar">
         <details class="toolbarGroup toolbarTools toolbarCollapsible" open aria-label="Tools">
@@ -26,12 +26,18 @@
             <button class="tool primary" data-tool="space" title="Rectangle (drag)">Rectangle</button>
             <button class="tool" data-tool="path" title="Path (tap points)">Line</button>
             <button class="tool" data-tool="free" title="Free path (draw)">Draw</button>
+            <button class="tool" data-tool="water" title="Paint water">Water</button>
+            <button class="tool" data-tool="arc" title="Arc / circle wall">Arc</button>
             <button class="tool" data-tool="poly" title="Regular polygon">Polygon</button>
             <button class="tool" data-tool="text" title="Add text label">Text</button>
             <button class="tool" data-tool="erase" title="Toggle erase mode for the selected drawing tool">Erase</button>
           </div>
           <div id="polyToolOptions" class="toolSubrow hidden" aria-live="polite">
-            <label class="toolInlineRange">
+            <label id="corridorToolRow" class="toolInlineRange hidden" hidden>
+              <span>Corridor width <strong id="corridorWidthOut">48</strong></span>
+              <input id="corridorWidth" type="range" min="12" max="96" step="4" value="48">
+            </label>
+            <label id="polyToolRow" class="toolInlineRange hidden" hidden>
               <span>Polygon sides <strong id="polySidesOut">6</strong></span>
               <input id="polySides" type="range" min="3" max="12" step="1" value="6">
             </label>
@@ -53,7 +59,7 @@
       </div>
 </header>
 
-    <div id="alphaBanner" class="alphaBanner" role="status" aria-live="polite">
+    <div id="alphaBanner" class="alphaBanner" role="status" aria-live="polite" hidden>
       <div class="alphaBannerText">
         <strong>Alpha test warning:</strong> This app is in active testing. Features and behavior may change, and map save files may not be compatible with future versions.
       </div>
@@ -83,7 +89,7 @@
             <section id="styleRenderPage" class="panelPage" data-panel-page="style" role="tabpanel">
               <div id="styleRenderGeneral" class="controls styleSections">
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Workspace</summary>
                   <div class="styleSectionBody">
                     <label>
@@ -95,17 +101,22 @@
                       Snap subdivisions <span id="snapDivOut">4</span>
                       <input id="snapDiv" type="range" min="1" max="8" step="1" value="4">
                     </label>
+
+                    <label>
+                      Gridline thickness <span id="gridLineWidthOut">1</span>
+                      <input id="gridLineWidth" type="range" min="0.5" max="4" step="0.5" value="1">
+                    </label>
+
+                    <label>
+                      Gridline opacity <span id="gridOpacityOut">0.06</span>
+                      <input id="gridOpacity" type="range" min="0" max="1" step="0.01" value="0.06">
+                    </label>
                   </div>
                 </details>
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Drawing &amp; Snapping</summary>
                   <div class="styleSectionBody">
-                    <label>
-                      Corridor width
-                      <input id="corridorWidth" type="range" min="12" max="96" step="4" value="48">
-                    </label>
-
                     <label>
                       Wall width
                       <input id="wallWidth" type="range" min="2" max="14" step="1" value="6">
@@ -123,7 +134,7 @@
                   </div>
                 </details>
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Map Base Style</summary>
                   <div class="styleSectionBody">
                     <label>
@@ -148,7 +159,7 @@
                   </div>
                 </details>
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Shadows &amp; Depth</summary>
                   <div class="styleSectionBody">
                     <div class="shadowRow">
@@ -174,7 +185,7 @@
                   </div>
                 </details>
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Sketch Pattern</summary>
                   <div class="styleSectionBody">
                     <label class="inline">
@@ -203,7 +214,7 @@
                   </div>
                 </details>
 
-                <details class="styleSection" open>
+                <details class="styleSection">
                   <summary>Text &amp; Label Render</summary>
                   <div class="styleSectionBody">
                     <label class="inline">
@@ -213,6 +224,36 @@
                     <label class="inline">
                       <span>Include text in export</span>
                       <input id="showTextExport" type="checkbox" checked>
+                    </label>
+                  </div>
+                </details>
+
+                <details class="styleSection">
+                  <summary>Water</summary>
+                  <div class="styleSectionBody">
+                    <label class="inline">
+                      <span>Show water</span>
+                      <input id="waterEnabled" type="checkbox" checked>
+                    </label>
+                    <label>
+                      Water color
+                      <input id="waterColor" type="color" value="#6bb8ff">
+                    </label>
+                    <label>
+                      Water opacity
+                      <input id="waterOpacity" type="range" min="0.05" max="0.9" step="0.01" value="0.4">
+                    </label>
+                    <label>
+                      Water brush width
+                      <input id="waterWidth" type="range" min="12" max="160" step="2" value="52">
+                    </label>
+                    <label class="inline">
+                      <span>Water outline</span>
+                      <input id="waterOutlineEnabled" type="checkbox" checked>
+                    </label>
+                    <label class="inline">
+                      <span>Water ripples</span>
+                      <input id="waterRipplesEnabled" type="checkbox" checked>
                     </label>
                   </div>
                 </details>
@@ -286,6 +327,7 @@
                                 <div><b>Select</b>: move props by dragging; drag the blue handle to rotate (toggle prop grid snap on/off)</div>
                                 <div><b>Rectangle</b>: drag to create a snapped rectangle</div>
                                 <div><b>Path</b>: tap to add points, double-tap to end</div>
+                                <div><b>Arc</b>: drag out radius, then drag a sweep; near a full loop snaps to a circle</div>
                                 <div><b>Free</b>: draw with one finger, lift to finish</div>
                                 <div><b>Polygon</b>: tap+drag to create a regular polygon; use the Polygon sides slider (3–12), then drag handles to resize/rotate; tap center to move</div>
                                 <div><b>Erase</b>: drag a snapped box on the sub-grid to cut out volume cells (finer than the visible grid)</div>
@@ -321,6 +363,53 @@
   </div>
 
 
+  <div id="coverPage" class="coverPageOverlay hidden" aria-hidden="true">
+    <div class="coverPageScrim" data-cover-close></div>
+    <section class="coverPageCard" role="dialog" aria-modal="true" aria-labelledby="coverPageTitle">
+      <button id="btnCoverClose" class="coverPageClose" type="button" aria-label="Close cover page">✕</button>
+      <div class="coverPageHeader">
+      <h1 id="coverPageTitle">Dungeon Sketch</h1>
+      <div class="coverPageVersion">Alpha v0.15</div>
+      <p class="coverPageLead">A sketch-first battlemapping workspace for quickly shaping encounter layouts, refining readability, and exporting maps for play.</p>
+      </div>
+      <section class="coverPageSection">
+        <h2>About</h2>
+        <p>Dungeon Sketch is built for fast iteration: block out walls, paths, arcs, polygons, water, props, and labels directly on the canvas, then tune presentation with grid, shadow, hatch, and export controls.</p>
+        <p>This cover page is informational only. Click the <strong>Dungeon Sketch version badge</strong> anytime to come back here.</p>
+      </section>
+
+      <section class="coverPageSection">
+        <h2>Feature overview</h2>
+        <div class="coverFeatureList">
+          <article class="coverFeatureItem">
+            <h3>Sketch quickly</h3>
+            <p>Rectangle, line, freehand, arc, polygon, water, and text tools keep layout ideation fast.</p>
+          </article>
+          <article class="coverFeatureItem">
+            <h3>Style clearly</h3>
+            <p>Control walls, gridlines, floor color, shadows, hatching, props, and text visibility without leaving the workspace.</p>
+          </article>
+          <article class="coverFeatureItem">
+            <h3>Export cleanly</h3>
+            <p>Generate PNG exports or tiled PDFs with tabletop-friendly square sizing and print layout options.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="coverPageSection">
+        <div class="coverSectionHeader">
+          <h2>Patch notes</h2>
+          <div class="coverSectionMeta">Recent changes and current notes</div>
+        </div>
+        <div id="coverPatchNotes" class="coverPatchNotes" aria-live="polite"></div>
+      </section>
+
+      <section class="coverPageSection coverStatusSection">
+        <h2>Development status</h2>
+        <p>This is an active alpha build. Features, behavior, and save compatibility may shift as the app evolves.</p>
+      </section>
+    </section>
+  </div>
 
   <div id="textEditOverlay" class="textEditOverlay hidden" aria-hidden="true">
     <textarea id="textCanvasEditor" class="textCanvasEditor" rows="1" spellcheck="false" placeholder="Label"></textarea>
@@ -508,9 +597,11 @@
       const banner = document.getElementById('alphaBanner');
       const closeBtn = document.getElementById('btnAlphaBannerClose');
       if (!banner || !closeBtn) return;
+      let dismissed = false;
       try {
-        if (localStorage.getItem(STORAGE_KEY) === '1') banner.hidden = true;
+        dismissed = localStorage.getItem(STORAGE_KEY) === '1';
       } catch (e) {}
+      banner.hidden = dismissed;
       closeBtn.addEventListener('click', function(){
         banner.hidden = true;
         try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}

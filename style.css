@@ -2846,3 +2846,64 @@ body[data-theme="dark"] .pdfFormGrid > label{
 .exportProgressMeta{margin-top:10px;}
 @keyframes dsSpin{to{transform:rotate(360deg)}}
 #btnThemeMode, #darkModeUi{ display:none !important; }
+
+
+.topbarTitleButton{
+  appearance:none;
+  border:none;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  cursor:pointer;
+}
+.topbarTitleButton:hover{ transform: translateY(-1px); }
+.topbarTitleButton:focus-visible{ outline:2px solid rgba(59,130,246,.55); outline-offset:3px; }
+.appTopbar .topbarTitle.topbarTitleButton{ pointer-events:auto !important; }
+.coverPageOverlay{
+  position:fixed; inset:0; z-index:140; display:grid; place-items:center; padding:24px; pointer-events:auto;
+}
+.coverPageOverlay.hidden{ display:none !important; }
+.coverPageScrim{
+  position:absolute; inset:0; background:rgba(15,23,42,.42); backdrop-filter: blur(8px) saturate(1.05); -webkit-backdrop-filter: blur(8px) saturate(1.05);
+}
+.coverPageCard{
+  position:relative; width:min(760px, calc(100vw - 32px)); max-height:min(88vh, 980px); overflow:auto;
+  padding:28px 28px 24px; border-radius:28px; border:1px solid rgba(31,41,51,.14); background:rgba(255,255,255,.92);
+  box-shadow:0 28px 80px rgba(15,23,42,.22); color:#1f2933;
+}
+.coverPageClose{
+  position:sticky; top:0; margin-left:auto; display:grid; place-items:center; width:38px; height:38px; border-radius:999px;
+  border:1px solid rgba(31,41,51,.14); background:rgba(255,255,255,.9); color:#1f2933; font:inherit; font-size:20px; cursor:pointer; z-index:2;
+}
+.coverPageClose:hover{ background:#fff; }
+.coverPageHeader{ margin-top:4px; }
+.coverPageEyebrow{ display:inline-flex; align-items:center; min-height:26px; padding:4px 10px; border-radius:999px; background:rgba(31,41,51,.06); color:rgba(31,41,51,.72); font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.coverPageHeader h1{ margin:14px 0 8px; font-size:clamp(34px, 5vw, 52px); line-height:.96; }
+.coverPageVersion{ display:inline-flex; align-items:center; min-height:34px; padding:6px 12px; border-radius:999px; background:rgba(0,175,255,.11); color:#085b87; font-size:13px; font-weight:700; }
+.coverPageLead{ margin:14px 0 0; max-width:62ch; font-size:16px; line-height:1.6; color:rgba(31,41,51,.82); }
+.coverPageSection{ margin-top:24px; padding-top:22px; border-top:1px solid rgba(31,41,51,.1); }
+.coverPageSection h2{ margin:0 0 12px; font-size:22px; }
+.coverPageSection p{ margin:10px 0 0; line-height:1.65; color:rgba(31,41,51,.82); }
+.coverFeatureList{ display:grid; gap:12px; }
+.coverFeatureItem{ padding:16px 18px; border-radius:18px; border:1px solid rgba(31,41,51,.08); background:rgba(248,247,244,.8); }
+.coverFeatureItem h3{ margin:0 0 6px; font-size:16px; }
+.coverFeatureItem p{ margin:0; font-size:14px; }
+.coverSectionHeader{ display:flex; flex-direction:column; gap:4px; }
+.coverSectionMeta{ font-size:13px; color:rgba(31,41,51,.62); }
+.coverPatchNotes{ display:grid; gap:14px; margin-top:14px; }
+.coverPatchEntry{ padding:18px 18px 16px; border-radius:20px; border:1px solid rgba(31,41,51,.09); background:rgba(255,255,255,.72); }
+.coverPatchHeader{ display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 12px; margin-bottom:10px; }
+.coverPatchVersion{ font-size:18px; font-weight:800; }
+.coverPatchDate{ font-size:13px; color:rgba(31,41,51,.62); }
+.coverPatchGroup + .coverPatchGroup{ margin-top:10px; }
+.coverPatchGroupTitle{ font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:rgba(31,41,51,.58); margin-bottom:6px; }
+.coverPatchList{ margin:0; padding-left:20px; color:rgba(31,41,51,.84); }
+.coverPatchList li + li{ margin-top:6px; }
+.coverStatusSection{ padding-bottom:4px; }
+body.body-cover-open{ overflow:hidden; }
+.body-cover-open .appShellHud,.body-cover-open .donateBanner{ filter: blur(2px); }
+@media (max-width: 720px){
+  .coverPageOverlay{ padding:14px; }
+  .coverPageCard{ width:min(100vw - 16px, 760px); max-height:min(92vh, 980px); padding:22px 18px 20px; border-radius:24px; }
+  .coverPageHeader h1{ font-size:clamp(30px, 10vw, 42px); }
+}

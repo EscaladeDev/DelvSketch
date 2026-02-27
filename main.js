@@ -1,9 +1,8 @@
 import { Dungeon } from "./model/dungeon.js"
 import { Camera } from "./canvas/camera.js"
-import { drawGrid } from "./canvas/grid.js"
 import { snapHard, snapSoft } from "./utils/snap.js"
 import { dist, norm, rotate } from "./utils/math.js"
-import { compileWorldCache, drawCompiledBase } from "./canvas/render.js"
+import { compileWorldCache, drawCompiledBase, drawCompiledExteriorGrid } from "./canvas/render.js"
 
 const canvas = document.querySelector("canvas")
 const ctx = canvas.getContext("2d", { alpha: true })
@@ -16,6 +15,15 @@ let W=0, H=0
 
 let compiledCache = null
 let compiledSig = ""
+
+function ensureCompileVersions(){
+  if (!dungeon.__versions || typeof dungeon.__versions !== "object") dungeon.__versions = { interior: 1, water: 1 }
+  if (!Number.isFinite(Number(dungeon.__versions.interior))) dungeon.__versions.interior = 1
+  if (!Number.isFinite(Number(dungeon.__versions.water))) dungeon.__versions.water = 1
+}
+function bumpInteriorVersion(){ ensureCompileVersions(); dungeon.__versions.interior += 1 }
+function bumpWaterVersion(){ ensureCompileVersions(); dungeon.__versions.water += 1 }
+ensureCompileVersions()
 
 // Global edit ordering across ALL tool types (rectangle/path/free/polygon).
 // This lets subtracts apply correctly no matter which tool created the geometry.
@@ -48,6 +56,7 @@ function resetTransientDrafts(){
   draftRect = null
   freeDraw = null
   draftShape = null
+  draftArc = null
   shapeDrag = null
   eraseStroke = null
 }
@@ -66,7 +75,23 @@ function syncToolUI(){
     const active = isEraseBtn ? !!underMode : (b.dataset.tool === tool)
     b.classList.toggle("primary", active)
   })
-  if (polyToolOptions) polyToolOptions.classList.toggle("hidden", tool !== "poly")
+  const showCorridorWidth = ["path","free","arc"].includes(tool)
+  const showPolySides = tool === "poly"
+  const showToolOptions = showCorridorWidth || showPolySides
+  const corridorToolRow = document.getElementById("corridorToolRow")
+  const polyToolRow = document.getElementById("polyToolRow")
+  if (polyToolOptions) {
+    polyToolOptions.classList.toggle("hidden", !showToolOptions)
+    polyToolOptions.hidden = !showToolOptions
+  }
+  if (corridorToolRow) {
+    corridorToolRow.classList.toggle("hidden", !showCorridorWidth)
+    corridorToolRow.hidden = !showCorridorWidth
+  }
+  if (polyToolRow) {
+    polyToolRow.classList.toggle("hidden", !showPolySides)
+    polyToolRow.hidden = !showPolySides
+  }
 }
 function setTool(t){
   if (t === "erase") {
@@ -145,6 +170,10 @@ const exportProgressTitle = document.getElementById("exportProgressTitle")
 const exportProgressMessage = document.getElementById("exportProgressMessage")
 const exportProgressFill = document.getElementById("exportProgressFill")
 const exportProgressMeta = document.getElementById("exportProgressMeta")
+const btnCoverHome = document.getElementById("btnCoverHome")
+const coverPage = document.getElementById("coverPage")
+const btnCoverClose = document.getElementById("btnCoverClose")
+const coverPatchNotes = document.getElementById("coverPatchNotes")
 const btnPngModalClose = document.getElementById("btnPngModalClose")
 const btnPngCancel = document.getElementById("btnPngCancel")
 const btnPngConfirm = document.getElementById("btnPngConfirm")
@@ -162,6 +191,8 @@ function dsSvgIcon(name){
     space: `<svg ${common}><rect x="4" y="6" width="16" height="12" rx="2"/></svg>`,
     path: `<svg ${common}><circle cx="6" cy="17" r="2"/><circle cx="18" cy="7" r="2"/><path d="M8 16l8-8"/></svg>`,
     free: `<svg ${common}><path d="M4 16c3-8 6 8 9 0s4-7 7-3"/></svg>`,
+    water: `<svg ${common}><path d="M12 3c3 4 6 7 6 10a6 6 0 1 1-12 0c0-3 3-6 6-10z"/></svg>`,
+    arc: `<svg ${common}><path d="M6 18a8 8 0 1 1 12 0"/><path d="M18 18h-4"/></svg>`,
     poly: `<svg ${common}><path d="M12 4l7 5-3 9H8L5 9z"/></svg>`,
     text: `<svg ${common}><path d="M4 6h16"/><path d="M12 6v14"/><path d="M8 10h8"/></svg>`,
     erase: `<svg ${common}><path d="M7 16l7-7 4 4-7 7H7l-2-2z"/><path d="M14 9l3-3 4 4-3 3"/><path d="M4 20h10"/></svg>`,
@@ -197,6 +228,7 @@ function injectToolbarIconStyles(){
     .toolbarTools #polyToolOptions .row,.toolbarTools #polyToolOptions .toolbarRow,.toolbarTools #polyToolOptions .fieldRow{display:block !important;grid-template-columns:none !important}
     .toolbarTools #polyToolOptions label{display:block; width:100%; min-width:0}
     .toolbarTools #polyToolOptions .toolInlineRange{display:grid !important; grid-template-columns:1fr !important; gap:8px; width:100%; min-width:0}
+    .toolbarTools #polyToolOptions .toolInlineRange.hidden,.toolbarTools #polyToolOptions .toolInlineRange[hidden],.toolbarTools #polyToolOptions label.hidden,.toolbarTools #polyToolOptions label[hidden]{display:none !important}
     .toolbarTools #polyToolOptions .toolInlineRange > span{display:block}
     .toolbarTools #polyToolOptions input[type="range"]{display:block;width:100%; min-width:0; max-width:100%; box-sizing:border-box; margin:0}
     .toolbarRow button.iconOnlyBtn[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 8px);top:auto;transform:translateX(-50%);background:rgba(20,20,24,.95);color:#fff;padding:4px 8px;border-radius:8px;font-size:12px;line-height:1;white-space:nowrap;pointer-events:none;z-index:9999;box-shadow:0 6px 18px rgba(0,0,0,.18)}
@@ -228,10 +260,10 @@ function iconizeButton(btn, { icon, label, iconOnly = false, textOnly = false } 
 
 function applyToolbarUiOverhaul(){
   injectToolbarIconStyles();
-  const toolIconMap = { select:'select', space:'space', path:'path', free:'free', poly:'poly', text:'text', erase:'erase' };
+  const toolIconMap = { select:'select', space:'space', path:'path', free:'free', water:'water', arc:'arc', poly:'poly', text:'text', erase:'erase' };
   toolButtons.forEach(btn => {
     const toolName = btn.dataset.tool || 'tool';
-    const nice = ({space:'Rectangle',path:'Path',free:'Free',poly:'Polygon',text:'Text',select:'Select',erase:'Erase'})[toolName] || toolName;
+    const nice = ({space:'Rectangle',path:'Path',free:'Free',water:'Water',arc:'Arc',poly:'Polygon',text:'Text',select:'Select',erase:'Erase'})[toolName] || toolName;
     if (toolName === 'text') iconizeButton(btn, { label: 'Text', textOnly: true });
     else iconizeButton(btn, { icon: toolIconMap[toolName] || 'select', label: nice, iconOnly: true });
   });
@@ -249,6 +281,7 @@ function applyToolbarUiOverhaul(){
 // controls
 const gridSize = document.getElementById("gridSize")
 const corridorWidth = document.getElementById("corridorWidth")
+const corridorWidthOut = document.getElementById("corridorWidthOut")
 const wallWidth = document.getElementById("wallWidth")
 const wallColor = document.getElementById("wallColor")
 const floorColor = document.getElementById("floorColor")
@@ -259,6 +292,10 @@ const polySides = document.getElementById("polySides")
 const polySidesOut = document.getElementById("polySidesOut")
 const snapDiv = document.getElementById("snapDiv")
 const snapDivOut = document.getElementById("snapDivOut")
+const gridLineWidth = document.getElementById("gridLineWidth")
+const gridLineWidthOut = document.getElementById("gridLineWidthOut")
+const gridOpacity = document.getElementById("gridOpacity")
+const gridOpacityOut = document.getElementById("gridOpacityOut")
 const darkModeUi = document.getElementById("darkModeUi")
 const btnThemeMode = document.getElementById("btnThemeMode")
 const themeColorMeta = document.querySelector('meta[name="theme-color"]')
@@ -276,6 +313,12 @@ const snapStrength = document.getElementById("snapStrength")
 const propSnapToggle = document.getElementById("propSnapToggle")
 const showTextPreview = document.getElementById("showTextPreview")
 const showTextExport = document.getElementById("showTextExport")
+const waterEnabled = document.getElementById("waterEnabled")
+const waterColor = document.getElementById("waterColor")
+const waterOpacity = document.getElementById("waterOpacity")
+const waterWidth = document.getElementById("waterWidth")
+const waterOutlineEnabled = document.getElementById("waterOutlineEnabled")
+const waterRipplesEnabled = document.getElementById("waterRipplesEnabled")
 const styleRenderGeneral = document.getElementById("styleRenderGeneral")
 const textStylePanel = document.getElementById("textStylePanel")
 const textContentInput = document.getElementById("textContentInput")
@@ -337,6 +380,90 @@ function ensureGlobalPropShadowToggleUi(){
   return input
 }
 
+const PATCH_NOTES = [
+  {
+    version: "v0.15",
+    date: "February 27, 2026",
+    groups: [
+      { title: "Added", items: [
+        "Informational cover page integrated directly into the app.",
+        "Patch notes hub accessible from the Dungeon Sketch version badge.",
+        "Feature overview and development status sections for orientation."
+      ] },
+      { title: "Fixed", items: [
+        "Optimized arc tool interactions."
+      ] }
+    ]
+  },
+  {
+    version: "v0.14",
+    date: "February 26, 2026",
+    groups: [
+      { title: "Added", items: [
+        "Gridline adjustments.",
+        "Visibility of the grid before walls are placed."
+      ] },
+      { title: "Fixed", items: [
+        "Sewer grate default shadow behavior and related shadow preset regressions.",
+        "PDF export handling for square print sizing below 1 inch."
+      ] }
+    ]
+  },
+  {
+    version: "v0.13",
+    date: "February 25, 2026",
+    groups: [
+      { title: "Added", items: [
+        "Advanced shadow controls for props with manifest-driven defaults.",
+        "Added water, including ripple and edge behavior tuning."
+      ] },
+      { title: "Fixed", items: [
+        "Performance-sensitive visual systems continue to be tuned conservatively to reduce editor latency."
+      ] }
+    ]
+  }
+]
+
+let coverPageOpen = false
+function renderCoverPatchNotes(){
+  if (!coverPatchNotes) return
+  coverPatchNotes.innerHTML = PATCH_NOTES.map(entry => `
+    <article class="coverPatchEntry">
+      <div class="coverPatchHeader">
+        <div class="coverPatchVersion">${entry.version}</div>
+        <div class="coverPatchDate">${entry.date}</div>
+      </div>
+      ${entry.groups.map(group => `
+        <section class="coverPatchGroup">
+          <div class="coverPatchGroupTitle">${group.title}</div>
+          <ul class="coverPatchList">
+            ${group.items.map(item => `<li>${item}</li>`).join("")}
+          </ul>
+        </section>
+      `).join("")}
+    </article>
+  `).join("")
+}
+function showCoverPage(){
+  if (!coverPage) return
+  coverPage.classList.remove("hidden")
+  coverPage.setAttribute("aria-hidden", "false")
+  document.body.classList.add("body-cover-open")
+  coverPageOpen = true
+}
+function hideCoverPage(){
+  if (!coverPage) return
+  coverPage.classList.add("hidden")
+  coverPage.setAttribute("aria-hidden", "true")
+  document.body.classList.remove("body-cover-open")
+  coverPageOpen = false
+}
+function toggleCoverPage(){
+  if (coverPageOpen) hideCoverPage()
+  else showCoverPage()
+}
+renderCoverPatchNotes()
+
 function updateHistoryButtons(){
   const canUndo = undoStack.length > 0
   const canRedo = redoStack.length > 0
@@ -387,6 +514,7 @@ function syncUI(){
   const __shadowAllPropsToggle = ensureGlobalPropShadowToggleUi()
   gridSize.value = dungeon.gridSize
   corridorWidth.value = dungeon.style.corridorWidth
+  if (corridorWidthOut) corridorWidthOut.textContent = String(dungeon.style.corridorWidth)
   wallWidth.value = dungeon.style.wallWidth
   if (wallColor) wallColor.value = dungeon.style.wallColor || "#1f2933"
   if (floorColor) floorColor.value = dungeon.style.floorColor || dungeon.style.paper || "#ffffff"
@@ -396,6 +524,14 @@ function syncUI(){
   if (polySidesOut) polySidesOut.textContent = String(Math.max(3, Math.min(12, Math.round(Number(dungeon.style.polySides || 6)))))
   if (snapDiv) snapDiv.value = String(Math.max(1, Math.min(8, Math.round(Number(dungeon.subSnapDiv || 4)))))
   if (snapDivOut) snapDivOut.textContent = String(Math.max(1, Math.min(8, Math.round(Number(dungeon.subSnapDiv || 4)))))
+  if (!Number.isFinite(Number(dungeon.style.gridLineWidth))) dungeon.style.gridLineWidth = 1
+  if (!Number.isFinite(Number(dungeon.style.gridOpacity))) dungeon.style.gridOpacity = 0.06
+  const uiGridLineWidth = Math.max(0.5, Math.min(4, Number.isFinite(Number(dungeon.style.gridLineWidth)) ? Number(dungeon.style.gridLineWidth) : 1))
+  const uiGridOpacity = Math.max(0, Math.min(1, Number.isFinite(Number(dungeon.style.gridOpacity)) ? Number(dungeon.style.gridOpacity) : 0.06))
+  if (gridLineWidth) gridLineWidth.value = String(uiGridLineWidth)
+  if (gridLineWidthOut) gridLineWidthOut.textContent = String(uiGridLineWidth)
+  if (gridOpacity) gridOpacity.value = String(uiGridOpacity)
+  if (gridOpacityOut) gridOpacityOut.textContent = uiGridOpacity.toFixed(2)
   shadowOn.checked = dungeon.style.shadow.enabled
   shadowOpacity.value = dungeon.style.shadow.opacity
   if (shadowColor) shadowColor.value = dungeon.style.shadow.color || "#000000"
@@ -409,6 +545,19 @@ function syncUI(){
   if (propSnapToggle) propSnapToggle.checked = !!dungeon.style.propSnapEnabled
   if (typeof dungeon.style.showTextPreview !== "boolean") dungeon.style.showTextPreview = true
   if (typeof dungeon.style.showTextExport !== "boolean") dungeon.style.showTextExport = true
+  if (!dungeon.style.water || typeof dungeon.style.water !== "object") dungeon.style.water = {}
+  if (typeof dungeon.style.water.enabled !== "boolean") dungeon.style.water.enabled = true
+  if (typeof dungeon.style.water.outlineEnabled !== "boolean") dungeon.style.water.outlineEnabled = (typeof dungeon.style.water.edgeLines === "boolean") ? dungeon.style.water.edgeLines : true
+  if (typeof dungeon.style.water.ripplesEnabled !== "boolean") dungeon.style.water.ripplesEnabled = (typeof dungeon.style.water.edgeLines === "boolean") ? dungeon.style.water.edgeLines : true
+  if (!dungeon.style.water.color) dungeon.style.water.color = "#6bb8ff"
+  if (!Number.isFinite(Number(dungeon.style.water.opacity))) dungeon.style.water.opacity = 0.4
+  if (!Number.isFinite(Number(dungeon.style.water.width))) dungeon.style.water.width = 52
+  if (waterEnabled) waterEnabled.checked = !!dungeon.style.water.enabled
+  if (waterColor) waterColor.value = dungeon.style.water.color
+  if (waterOpacity) waterOpacity.value = String(dungeon.style.water.opacity)
+  if (waterWidth) waterWidth.value = String(dungeon.style.water.width)
+  if (waterOutlineEnabled) waterOutlineEnabled.checked = dungeon.style.water.outlineEnabled !== false
+  if (waterRipplesEnabled) waterRipplesEnabled.checked = dungeon.style.water.ripplesEnabled !== false
   if (showTextPreview) showTextPreview.checked = !!dungeon.style.showTextPreview
   if (showTextExport) showTextExport.checked = !!dungeon.style.showTextExport
   snapStrength.value = dungeon.style.snapStrength
@@ -420,9 +569,20 @@ syncUI()
 syncTextPanelVisibility()
 renderRecentGoogleFonts()
 applyUiTheme(getPreferredTheme())
+if (btnCoverHome) btnCoverHome.addEventListener("click", toggleCoverPage)
+if (btnCoverClose) btnCoverClose.addEventListener("click", hideCoverPage)
+if (coverPage) {
+  coverPage.addEventListener("click", (e) => {
+    if (e.target && e.target.matches("[data-cover-close]")) hideCoverPage()
+  })
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && coverPageOpen) hideCoverPage()
+})
+showCoverPage()
 
 gridSize.addEventListener("input", () => dungeon.gridSize = Number(gridSize.value))
-corridorWidth.addEventListener("input", () => dungeon.style.corridorWidth = Number(corridorWidth.value))
+corridorWidth.addEventListener("input", () => { dungeon.style.corridorWidth = Number(corridorWidth.value); if (corridorWidthOut) corridorWidthOut.textContent = String(dungeon.style.corridorWidth) })
 wallWidth.addEventListener("input", () => dungeon.style.wallWidth = Number(wallWidth.value))
 if (wallColor) wallColor.addEventListener("input", () => dungeon.style.wallColor = wallColor.value)
 if (floorColor) {
@@ -440,6 +600,17 @@ if (snapDiv) snapDiv.addEventListener("input", () => {
   const v = Math.max(1, Math.min(8, Math.round(Number(snapDiv.value) || 4)))
   dungeon.subSnapDiv = v
   if (snapDivOut) snapDivOut.textContent = String(v)
+})
+if (gridLineWidth) gridLineWidth.addEventListener("input", () => {
+  const v = Math.max(0.5, Math.min(4, Number(gridLineWidth.value) || 1))
+  dungeon.style.gridLineWidth = v
+  if (gridLineWidthOut) gridLineWidthOut.textContent = String(v)
+})
+if (gridOpacity) gridOpacity.addEventListener("input", () => {
+  const raw = Number(gridOpacity.value)
+  const v = Math.max(0, Math.min(1, Number.isFinite(raw) ? raw : 0.06))
+  dungeon.style.gridOpacity = v
+  if (gridOpacityOut) gridOpacityOut.textContent = v.toFixed(2)
 })
 function getPolySidesValue(){
   const n = Math.round(Number((polySides && polySides.value) || dungeon.style.polySides || 6))
@@ -470,6 +641,12 @@ snapStrength.addEventListener("input", () => dungeon.style.snapStrength = Number
 if (propSnapToggle) propSnapToggle.addEventListener("change", () => { dungeon.style.propSnapEnabled = !!propSnapToggle.checked })
 if (showTextPreview) showTextPreview.addEventListener("change", () => { dungeon.style.showTextPreview = !!showTextPreview.checked; if (!isTextPreviewGloballyVisible()) { selectedTextId = null; if (textDrag && textDrag.pushedUndo && !textDrag.changed) undoStack.pop(); textDrag = null; cancelActiveTextEditor(); syncTextPanelVisibility(); } })
 if (showTextExport) showTextExport.addEventListener("change", () => { dungeon.style.showTextExport = !!showTextExport.checked })
+if (waterEnabled) waterEnabled.addEventListener("change", () => { dungeon.style.water.enabled = !!waterEnabled.checked; compiledSig = "" })
+if (waterColor) waterColor.addEventListener("input", () => { dungeon.style.water.color = waterColor.value })
+if (waterOpacity) waterOpacity.addEventListener("input", () => { dungeon.style.water.opacity = Number(waterOpacity.value) })
+if (waterWidth) waterWidth.addEventListener("input", () => { dungeon.style.water.width = Number(waterWidth.value) })
+if (waterOutlineEnabled) waterOutlineEnabled.addEventListener("change", () => { dungeon.style.water.outlineEnabled = !!waterOutlineEnabled.checked; compiledSig = "" })
+if (waterRipplesEnabled) waterRipplesEnabled.addEventListener("change", () => { dungeon.style.water.ripplesEnabled = !!waterRipplesEnabled.checked; compiledSig = "" })
 
 if (textContentInput) textContentInput.addEventListener('input', () => { const t = getSelectedText(); if (t) { t.text = textContentInput.value; if (textEditorState && textEditorState.id === t.id && textCanvasEditor && document.activeElement !== textCanvasEditor) textCanvasEditor.value = t.text; if (textEditorState && textEditorState.id === t.id) positionTextEditorOverlayForText(t) } })
 if (textFontFamily) textFontFamily.addEventListener('change', async () => { const t = getSelectedText(); if (!t) return; const nextFont = textFontFamily.value; if (!hasFontOption(nextFont) && nextFont) { await loadGoogleFontFamily(nextFont) } t.fontFamily = nextFont; if (googleFontFamilyInput && !['Minecraft Five','system-ui','serif','monospace'].includes(nextFont)) googleFontFamilyInput.value = nextFont; if (textEditorState && textEditorState.id === t.id) positionTextEditorOverlayForText(t) })
@@ -502,7 +679,7 @@ if (textCanvasEditor) {
 // undo/redo
 const undoStack=[], redoStack=[]
 updateHistoryButtons()
-function snapshot(){ return JSON.stringify({ gridSize:dungeon.gridSize, subSnapDiv:dungeon.subSnapDiv, spaces:dungeon.spaces, paths:dungeon.paths, shapes:dungeon.shapes, style:dungeon.style, placedProps, placedTexts, selectedPropId, selectedTextId }) }
+function snapshot(){ return JSON.stringify({ gridSize:dungeon.gridSize, subSnapDiv:dungeon.subSnapDiv, spaces:dungeon.spaces, paths:dungeon.paths, water:dungeon.water, shapes:dungeon.shapes, style:dungeon.style, placedProps, placedTexts, selectedPropId, selectedTextId }) }
 function restore(s){
   const d = JSON.parse(s)
   // Backward compatible: restore either plain dungeon snapshot or wrapped save object.
@@ -510,7 +687,7 @@ function restore(s){
   setDungeonFromObject(d)
   placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(normalizePlacedPropObj).filter(p => p && p.url) : placedProps
   placedTexts = Array.isArray(d.placedTexts) ? d.placedTexts.map(normalizeTextObj) : []
-  draft=null; draftRect=null; freeDraw=null; draftShape=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
+  draft=null; draftRect=null; freeDraw=null; draftShape=null; draftArc=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
   syncTextPanelVisibility()
   underMode = false
   syncUI()
@@ -542,7 +719,7 @@ function normalizePlacedPropObj(p){
     rot: safeNum(p?.rot, 0),
     flipX: p?.flipX === true,
     flipY: p?.flipY === true,
-    shadowDisabled: p?.shadowDisabled === true
+    shadowDisabled: p?.shadowDisabled === true,
   }
 }
 function getPlacedPropRenderSize(prop){
@@ -1108,7 +1285,7 @@ function placePropAtWorld(prop, world){
     rot: rotatePropAngleMaybeSnap(Number(prop.rot || 0) || 0),
     flipX: false,
     flipY: false,
-    shadowDisabled: false
+    shadowDisabled: !!(prop.shadow && prop.shadow.mode === 'none'),
   }
   placedProps.push(placed)
   selectedPropId = placed.id
@@ -1378,7 +1555,10 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
         poctx.restore()
       }
 
-      const shadowEnabled = (a?.shadowDisabled !== true) && (propMeta?.castShadow !== false)
+      const shadowEnabled =
+        (a?.shadowDisabled === true) ? false :
+        (a?.shadowDisabled === false) ? true :
+        (propMeta?.castShadow !== false)
       if (!shadowEnabled || !(img.complete && img.naturalWidth > 0)) continue
       const shadowLayer = getPropShadowCanvasLikeWalls(a, img, w, h, targetCamera.zoom)
       if (!shadowLayer?.canvas) continue
@@ -1569,6 +1749,32 @@ function clearPropObjectURLs(list = importedPropsCatalog){
   }
 }
 
+
+function defaultShadowModeForCategory(category){
+  const c = String(category || '').toLowerCase()
+  if (c.includes('floor')) return 'none'
+  if (c.includes('structure')) return 'solid'
+  return 'default'
+}
+function normalizePropManifestMeta(a = {}){
+  const src = String(a.src || '').toLowerCase()
+  const id = String(a.id || '').toLowerCase()
+  const name = String(a.name || '').toLowerCase()
+  const looksLikeFloorProp = (
+    src.includes('grate') || id.includes('grate') || name.includes('grate') ||
+    src.includes('drain') || id.includes('drain') || name.includes('drain')
+  )
+  const category = String(a.category || (looksLikeFloorProp ? 'floor' : 'props'))
+  const shadow = (a.shadow && typeof a.shadow === 'object') ? a.shadow : {}
+  const inferredShadowMode = looksLikeFloorProp ? 'none' : defaultShadowModeForCategory(category)
+  const shadowMode = String(shadow.mode || inferredShadowMode).toLowerCase()
+  return {
+    category,
+    shadowMode,
+    shadowProfile: String(shadow.profile || 'bounds').toLowerCase()
+  }
+}
+
 function makeBundledPropUrl(src){
   try { return new URL(`assets/props/${src}`, window.location.href).href }
   catch { return `assets/props/${src}` }
@@ -1593,15 +1799,18 @@ async function loadBundledPropsManifest(force = false){
         const src = String(a.src)
         const baseDir = manifestPath.replace(/[^/]+$/, "")
         const resolvedSrc = /^(https?:|data:|blob:|\/)/i.test(src) ? src : (baseDir + src)
+        const meta = normalizePropManifestMeta(a)
         merged.push({
           id: String(a.id || `${manifestPath}-builtin-${i}`),
           name: String(a.name || a.src).replace(/\.[^.]+$/, ""),
           url: resolvedSrc,
           source: "bundled",
-          gridW: Number(a.gridW ?? a.defaultGridW ?? 1) || 1,
-          gridH: Number(a.gridH ?? a.defaultGridH ?? 1) || 1,
+          category: meta.category,
+          gridW: Number(a.gridW ?? a.defaultGridW ?? a.size?.w ?? 1) || 1,
+          gridH: Number(a.gridH ?? a.defaultGridH ?? a.size?.h ?? 1) || 1,
           rot: Number(a.rot || 0) || 0,
-          castShadow: (a.castShadow !== false)
+          castShadow: (meta.shadowMode !== 'none') && (a.castShadow !== false),
+          shadow: { mode: meta.shadowMode, profile: meta.shadowProfile }
         })
       }
     } catch (err) {
@@ -1741,6 +1950,7 @@ function setDungeonFromObject(d){
   if (raw && (Array.isArray(raw.spaces) || Array.isArray(raw.paths) || Array.isArray(raw.shapes))) {
     dungeon.spaces = Array.isArray(raw.spaces) ? raw.spaces : []
     dungeon.paths  = Array.isArray(raw.paths)  ? raw.paths  : []
+    dungeon.water  = (raw.water && typeof raw.water === "object") ? raw.water : { paths: [] }
     dungeon.shapes = Array.isArray(raw.shapes) ? raw.shapes : []
   } else if (d.geometry && Array.isArray(d.geometry.regions)) {
     // Compact fallback: reconstruct as additive boundary regions.
@@ -1755,10 +1965,12 @@ function setDungeonFromObject(d){
         )
       }))
     dungeon.paths = []
+    dungeon.water = { paths: [] }
     dungeon.shapes = []
   } else {
     dungeon.spaces = Array.isArray(d.spaces) ? d.spaces : []
     dungeon.paths = Array.isArray(d.paths) ? d.paths : []
+    dungeon.water = (d.water && typeof d.water === "object") ? d.water : { paths: [] }
     dungeon.shapes = Array.isArray(d.shapes) ? d.shapes : []
   }
 
@@ -1774,6 +1986,16 @@ function setDungeonFromObject(d){
     if (!p.mode) p.mode = "add"
     if (!Array.isArray(p.points)) p.points = []
     if (!Number.isFinite(Number(p.seq))) p.seq = nextEditSeq()
+    if (!Number.isFinite(Number(p.width))) p.width = Number(dungeon.style?.corridorWidth || 48)
+  }
+  if (!dungeon.water || typeof dungeon.water !== "object") dungeon.water = { paths: [] }
+  if (!Array.isArray(dungeon.water.paths)) dungeon.water.paths = []
+  for (const wp of dungeon.water.paths) {
+    if (!wp.id) wp.id = crypto.randomUUID()
+    if (!wp.mode) wp.mode = "add"
+    if (!Array.isArray(wp.points)) wp.points = []
+    if (!Number.isFinite(Number(wp.seq))) wp.seq = nextEditSeq()
+    if (!Number.isFinite(Number(wp.width))) wp.width = Number(dungeon.style?.water?.width || 52)
   }
   for (const sh of dungeon.shapes) {
     if (!sh.id) sh.id = crypto.randomUUID()
@@ -1793,6 +2015,9 @@ function setDungeonFromObject(d){
     }
     if (d.style.hatch && typeof d.style.hatch === "object") {
       nextStyle.hatch = Object.assign({}, dungeon.style.hatch, d.style.hatch)
+    }
+    if (d.style.water && typeof d.style.water === "object") {
+      nextStyle.water = Object.assign({}, dungeon.style.water, d.style.water)
     }
   }
   nextStyle.polySides = Math.max(3, Math.min(12, Math.round(safeNum(nextStyle.polySides, 6))))
@@ -1824,11 +2049,14 @@ function applyLoadedMapObject(obj){
     camera.zoom = camera.clampZoom(safeNum(obj.camera.zoom, camera.zoom))
   }
 
-  draft=null; draftRect=null; freeDraw=null; draftShape=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
+  draft=null; draftRect=null; freeDraw=null; draftShape=null; draftArc=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
   syncTextPanelVisibility()
   underMode = false
   syncUI()
   drawPuck()
+  ensureCompileVersions()
+  bumpInteriorVersion()
+  bumpWaterVersion()
   compiledSig = "" // force recompile next frame
 }
 
@@ -1856,6 +2084,7 @@ function getSaveMapObject(){
     raw: {
       spaces: cloneJson(dungeon.spaces),
       paths: cloneJson(dungeon.paths),
+      water: cloneJson(dungeon.water),
       shapes: dungeon.shapes.map(s => ({...s, _poly: undefined}))
     }
   }
@@ -1872,7 +2101,7 @@ function getSaveMapObject(){
   return {
     app: "Dungeon Sketch",
     format: "dungeon-sketch-map",
-    version: 3,
+    version: 4,
     savedAt: new Date().toISOString(),
     camera: { x: camera.x, y: camera.y, zoom: camera.zoom },
     dungeon: Object.assign(dungeonData, { placedProps: cloneJson(placedProps || []), placedTexts: cloneJson(placedTexts || []) })
@@ -1934,7 +2163,38 @@ if (fileLoadMap) fileLoadMap.addEventListener("change", async (e) => {
   catch (err) { alert(`Could not load map: ${err.message || err}`) }
   e.target.value = ""
 })
-btnClear.addEventListener("click", () => { pushUndo(); dungeon.spaces=[]; dungeon.paths=[]; dungeon.shapes=[]; placedTexts=[]; refreshEditSeqCounter(); selectedShapeId=null; selectedTextId=null; draft=null; draftRect=null; freeDraw=null; draftShape=null; eraseStroke=null; syncTextPanelVisibility(); updateHistoryButtons() })
+function clearMapContents(){
+  dungeon.spaces = [];
+  dungeon.paths = [];
+  dungeon.water = { paths: [] };
+  dungeon.shapes = [];
+  placedProps = [];
+  placedTexts = [];
+
+  selectedPropId = null;
+  selectedShapeId = null;
+  selectedTextId = null;
+  armedPropId = null;
+  dragPropId = null;
+
+  draft = null;
+  draftRect = null;
+  freeDraw = null;
+  draftShape = null;
+  draftArc = null;
+  eraseStroke = null;
+
+  bumpInteriorVersion();
+  bumpWaterVersion();
+  refreshEditSeqCounter();
+  syncTextPanelVisibility();
+  updateHistoryButtons();
+  render();
+}
+btnClear.addEventListener("click", () => {
+  pushUndo();
+  clearMapContents();
+});
 btnExport.addEventListener("click", () => exportPNG().catch(err => { console.error(err); alert("PNG export failed. See console.") }))
 btnPDF?.addEventListener("click", () => exportMultipagePDF().catch(err => { console.error(err); alert("PDF export failed. See console."); }))
 if (btnFinish) btnFinish.addEventListener("click", finishTool)
@@ -1991,9 +2251,11 @@ function renderSceneToCanvasForBounds(targetCanvas, worldBounds){
     tctx.fillStyle = dungeon.style.backgroundColor || '#f8f7f4'
     tctx.fillRect(0,0,tw,th)
   }
-  drawGrid(tctx, exportCam, dungeon.gridSize, tw, th)
+  const liveZoom = Math.max(0.0001, Number(camera.zoom) || 1)
+  const exportGridLineWidthScale = Math.min(8, Math.max(1, exportCam.zoom / liveZoom))
   const cache = ensureCompiled()
-  drawCompiledBase(tctx, exportCam, cache, dungeon, tw, th)
+  drawCompiledExteriorGrid(tctx, exportCam, cache, dungeon, tw, th, exportGridLineWidthScale)
+  drawCompiledBase(tctx, exportCam, cache, dungeon, tw, th, exportGridLineWidthScale)
   drawPlacedPropsTo(tctx, exportCam, tw, th, cache)
   drawTextsTo(tctx, exportCam, { forExport:true })
   return { ctx: tctx, cam: exportCam }
@@ -2217,12 +2479,13 @@ function compileSignature(){
     spaces: dungeon.spaces,
     paths: dungeon.paths,
     shapes: dungeon.shapes.map(s => ({...s, _poly: undefined})),
+    water: dungeon.water,
     style: {
-      corridorWidth: dungeon.style.corridorWidth,
       wallColor: dungeon.style.wallColor,
       wallWidth: dungeon.style.wallWidth,
       shadow: dungeon.style.shadow,
-      hatch: dungeon.style.hatch
+      hatch: dungeon.style.hatch,
+      water: dungeon.style.water,
     }
   })
 }
@@ -2231,7 +2494,7 @@ function ensureCompiled(){
   const sig = compileSignature()
   if (!compiledCache || sig !== compiledSig){
     compiledSig = sig
-    compiledCache = compileWorldCache(dungeon)
+    compiledCache = compileWorldCache(dungeon, placedProps, getPropById)
   }
   return compiledCache
 }
@@ -2575,6 +2838,7 @@ function getPaperPageInches(paperKey){
 function choosePageLayoutForTiling(opts, mapSquares){
   const paper = getPaperPageInches(opts.paper)
   const overlap = Math.max(0, Math.floor(opts.overlapSquares || 0))
+  const floorWithEpsilon = (value) => Math.floor((Number(value) || 0) + 1e-9)
 
   const candidates = []
   const orientations = opts.orientation === 'auto' ? ['portrait', 'landscape'] : [opts.orientation]
@@ -2582,8 +2846,8 @@ function choosePageLayoutForTiling(opts, mapSquares){
   for (const orientation of orientations){
     const pageIn = orientation === 'landscape' ? { w: paper.h, h: paper.w } : { w: paper.w, h: paper.h }
     const printable = { w: pageIn.w - 2*opts.marginIn, h: pageIn.h - 2*opts.marginIn }
-    const capX = Math.floor(printable.w / opts.squareSizeIn)
-    const capY = Math.floor(printable.h / opts.squareSizeIn)
+    const capX = floorWithEpsilon(printable.w / opts.squareSizeIn)
+    const capY = floorWithEpsilon(printable.h / opts.squareSizeIn)
     if (capX < 1 || capY < 1) continue
     const stepX = Math.max(1, capX - overlap)
     const stepY = Math.max(1, capY - overlap)
@@ -2926,6 +3190,7 @@ let draft = null          // {type:'path', points:[]}
 let draftRect = null      // {a,b}
 let freeDraw = null       // [{x,y}...]
 let draftShape = null     // {center, radius, rotation, sides}
+let draftArc = null       // {stage, center, radius, startAngle, endAngle, sweepAccum, lastRawAngle, previewAngle, dragPointerId}
 let selectedShapeId = null
 let shapeDrag = null      // {mode:'move'|'handle', id, startWorld, startCenter, startRadius, startRot}
 let eraseStroke = null     // {cells: Map<key,{gx,gy}>}
@@ -2934,12 +3199,63 @@ normalizeEditSequences()
 function finishTool(){
   if (tool === "path" || tool === "poly") {
     if (draft && draft.type === "path" && draft.points.length>=2) {
-      pushUndo()
-      dungeon.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), points: draft.points })
+      commitDraftPath(draft.points)
       draft = null
     }
   }
   // poly tool doesn't need finish (created on drag), but keep for symmetry
+}
+
+function normalizeAngle(angle){
+  let a = Number(angle) || 0
+  while (a <= -Math.PI) a += Math.PI * 2
+  while (a > Math.PI) a -= Math.PI * 2
+  return a
+}
+function angleFromCenter(center, point){
+  return Math.atan2((point.y - center.y), (point.x - center.x))
+}
+function distanceToArcCircumference(arc, world){
+  if (!arc || !world) return Infinity
+  return Math.abs(Math.hypot(world.x - arc.center.x, world.y - arc.center.y) - arc.radius)
+}
+function getArcPreviewData(arc){
+  if (!arc) return null
+  const radius = Math.max(subGrid(), Number(arc.radius) || 0)
+  const startAngle = Number.isFinite(Number(arc.startAngle)) ? Number(arc.startAngle) : 0
+  const sweepAccum = Number.isFinite(Number(arc.sweepAccum)) ? Number(arc.sweepAccum) : 0
+  const fullCircleThreshold = Math.PI * 1.92
+  const isCircle = arc.stage === "end" && Math.abs(sweepAccum) >= fullCircleThreshold
+  const sweep = isCircle ? (sweepAccum >= 0 ? Math.PI * 2 : -Math.PI * 2) : sweepAccum
+  const endAngle = Number.isFinite(Number(arc.endAngle)) ? Number(arc.endAngle) : (startAngle + sweep)
+  return { center: arc.center, radius, startAngle, endAngle: isCircle ? (startAngle + sweep) : endAngle, sweep, isCircle }
+}
+function sampleArcPoints(center, radius, startAngle, endAngle, { closeLoop=false } = {}){
+  const r = Math.max(subGrid(), Number(radius) || 0)
+  const sweep = endAngle - startAngle
+  const arcLen = Math.max(r * Math.abs(sweep), r * 0.5)
+  const targetChord = Math.max(subGrid() * 0.8, 10)
+  let segments = Math.max(12, Math.ceil(arcLen / targetChord))
+  if (closeLoop) segments = Math.max(24, segments)
+  segments = Math.min(180, segments)
+  const pts = []
+  for (let i=0;i<=segments;i++) {
+    const t = i / segments
+    const a = startAngle + sweep * t
+    pts.push({ x: center.x + Math.cos(a) * r, y: center.y + Math.sin(a) * r })
+  }
+  if (closeLoop && pts.length) pts.push({ ...pts[0] })
+  return pts
+}
+function commitDraftArc(arc){
+  const preview = getArcPreviewData(arc)
+  if (!preview || !preview.center) return false
+  if (preview.radius < subGrid() * 0.75) return false
+  if (!preview.isCircle && Math.abs(preview.sweep) < (Math.PI / 18)) return false
+  const pts = sampleArcPoints(preview.center, preview.radius, preview.startAngle, preview.endAngle, { closeLoop: preview.isCircle })
+  if (!Array.isArray(pts) || pts.length < 2) return false
+  commitDraftPath(pts, { source: "arc", closed: !!preview.isCircle })
+  return true
 }
 
 function simplifyFree(points, minDist=7){
@@ -2953,6 +3269,23 @@ function simplifyFree(points, minDist=7){
 
 function subGrid(){ return dungeon.gridSize / (dungeon.subSnapDiv || 4) }
 function currentDrawMode(){ return underMode ? "subtract" : "add" }
+function currentCorridorWidth(){ return Math.max(12, Number(dungeon.style?.corridorWidth || 48) || 48) }
+function commitDraftPath(points, extra = {}){
+  if (!Array.isArray(points) || points.length < 2) return false
+  pushUndo()
+  dungeon.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), width: currentCorridorWidth(), points, ...extra })
+  bumpInteriorVersion()
+  return true
+}
+function updateDraftArcSweepToWorld(arc, world){
+  if (!arc || arc.stage !== "end" || !world) return
+  const rawAngle = angleFromCenter(arc.center, world)
+  const last = Number.isFinite(Number(arc.lastRawAngle)) ? arc.lastRawAngle : rawAngle
+  arc.sweepAccum += normalizeAngle(rawAngle - last)
+  arc.lastRawAngle = rawAngle
+  arc.endAngle = arc.startAngle + arc.sweepAccum
+  arc.previewAngle = rawAngle
+}
 
 function rectPolyKey(poly){
   if (!Array.isArray(poly) || poly.length !== 4) return null
@@ -2972,6 +3305,7 @@ function commitSpacePolygon(poly, mode=currentDrawMode()){
   const key = rectPolyKey(poly)
   if (!key){
     dungeon.spaces.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode, polygon: poly })
+    bumpInteriorVersion()
     return true
   }
   for (let i=dungeon.spaces.length-1; i>=0; i--){
@@ -2985,6 +3319,7 @@ function commitSpacePolygon(poly, mode=currentDrawMode()){
     // exact opposite rectangle exists -> latest action wins (replace prior)
     dungeon.spaces.splice(i, 1)
     dungeon.spaces.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode, polygon: poly })
+    bumpInteriorVersion()
     return true
   }
   dungeon.spaces.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode, polygon: poly })
@@ -3095,6 +3430,10 @@ window.addEventListener("pointermove", (e)=>{
   if (typeof e.clientX !== "number" || typeof e.clientY !== "number") return
   if (!pointInsideCanvasClient(e.clientX, e.clientY)) return
   lastCursorScreen = getPointerPos(e)
+  if (tool === "arc" && draftArc && draftArc.stage === "end") {
+    const hoverWorld = camera.screenToWorld(lastCursorScreen)
+    updateDraftArcSweepToWorld(draftArc, hoverWorld)
+  }
 })
 
 let propContextMenuEl = null
@@ -3274,6 +3613,7 @@ window.addEventListener("keydown", (e)=>{
   }
   if (tag === "input" || tag === "textarea" || activeEditable) return
   if ((e.key === "t" || e.key === "T") && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); setTool("text") ; return }
+  if ((e.key === "a" || e.key === "A") && !e.metaKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); setTool("arc") ; return }
   if (e.key === "Enter" && selectedTextId) { e.preventDefault(); if (!textEditorState) { pushUndo(); openTextEditorFor(selectedTextId, { isNew:false, undoPushed:true }) } return }
   if ((e.key === "Delete" || e.key === "Backspace") && selectedPropId){
     const idx = placedProps.findIndex(p => p && p.id === selectedPropId)
@@ -3351,7 +3691,7 @@ canvas.addEventListener("pointerdown", (e)=>{
 
   if (e.pointerType==="mouse" && (e.button===1 || e.button===2)){
     panDrag = { start:{x:e.clientX,y:e.clientY}, cam:{x:camera.x,y:camera.y} }
-    draftRect=null; freeDraw=null; draft=null; draftShape=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
+    draftRect=null; freeDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
     return
   }
   if (pointers.size===2){
@@ -3359,7 +3699,7 @@ canvas.addEventListener("pointerdown", (e)=>{
     const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2}
     const dd=Math.hypot(a.x-b.x,a.y-b.y)
     gesture={ lastDist:Math.max(dd, 0.0001), lastMid:mid }
-    draftRect=null; freeDraw=null; draft=null; draftShape=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
+    draftRect=null; freeDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
     return
   }
 
@@ -3429,6 +3769,7 @@ canvas.addEventListener("pointerdown", (e)=>{
     return
   }
 
+
   // Poly tool: create/select/drag parametric shape
   if (tool === "poly"){
     // try select existing
@@ -3448,6 +3789,7 @@ canvas.addEventListener("pointerdown", (e)=>{
     return
   }
 
+
   selectedShapeId = null
   selectedPropId = null
   selectedTextId = null
@@ -3464,8 +3806,22 @@ canvas.addEventListener("pointerdown", (e)=>{
   if (tool === "space"){
     const w = camera.screenToWorld(screen)
     draftRect = { a:w, b:w }
-  } else if (tool === "free"){
+  } else if (tool === "free" || tool === "water"){
     freeDraw = [ snapSoft(world, subGrid(), dungeon.style.snapStrength) ]
+  } else if (tool === "arc"){
+    if (!draftArc){
+      draftArc = {
+        stage:"radius",
+        center:snapSoft(world, subGrid(), dungeon.style.snapStrength),
+        radius:subGrid(),
+        startAngle:0,
+        endAngle:0,
+        sweepAccum:0,
+        lastRawAngle:0,
+        previewAngle:0,
+        dragPointerId:e.pointerId
+      }
+    }
   }
 })
 
@@ -3547,6 +3903,7 @@ canvas.addEventListener("pointermove", (e)=>{
     return
   }
 
+
   // shape drag
   if (shapeDrag){
     const sh = dungeon.shapes.find(s=>s.id===shapeDrag.id)
@@ -3580,10 +3937,21 @@ canvas.addEventListener("pointermove", (e)=>{
     draftShape.rotation = Math.round(ang/step)*step
   }
 
+  if (tool==="arc" && draftArc){
+    if (draftArc.stage === "radius" && draftArc.dragPointerId === e.pointerId){
+      const v = { x: world.x - draftArc.center.x, y: world.y - draftArc.center.y }
+      const r = Math.max(subGrid(), Math.hypot(v.x, v.y))
+      draftArc.radius = snapHard({x:r,y:0}, subGrid()).x
+      draftArc.previewAngle = angleFromCenter(draftArc.center, world)
+      draftArc.startAngle = draftArc.previewAngle
+      draftArc.endAngle = draftArc.previewAngle
+    }
+  }
+
   if (tool==="space" && draftRect && pointers.size===1){
     draftRect.b = world
   }
-  if (tool==="free" && freeDraw && pointers.size===1){
+  if ((tool==="free" || tool==="water") && freeDraw && pointers.size===1){
     freeDraw.push(snapSoft(world, subGrid(), dungeon.style.snapStrength))
   }
 })
@@ -3623,6 +3991,7 @@ canvas.addEventListener("pointerup", (e)=>{
     return
   }
 
+
   // end shape drag / create shape
   if (shapeDrag){
     pushUndo()
@@ -3636,9 +4005,36 @@ canvas.addEventListener("pointerup", (e)=>{
     const sh = { id: crypto.randomUUID(), seq: nextEditSeq(), kind:"regular", sides:draftShape.sides, center:draftShape.center, radius:draftShape.radius, rotation:draftShape.rotation, mode: currentDrawMode() }
     updateShapePoly(sh)
     dungeon.shapes.push(sh)
+    bumpInteriorVersion()
     selectedShapeId = sh.id
     draftShape = null
     return
+  }
+
+  if (tool==="arc" && draftArc){
+    if (draftArc.stage === "radius" && draftArc.dragPointerId === e.pointerId){
+      const rawAngle = angleFromCenter(draftArc.center, world)
+      const v = { x: world.x - draftArc.center.x, y: world.y - draftArc.center.y }
+      const r = Math.max(subGrid(), Math.hypot(v.x, v.y))
+      if (r < subGrid() * 0.75) {
+        draftArc = null
+        return
+      }
+      draftArc.radius = snapHard({x:r,y:0}, subGrid()).x
+      draftArc.stage = "end"
+      draftArc.startAngle = rawAngle
+      draftArc.endAngle = rawAngle
+      draftArc.sweepAccum = 0
+      draftArc.lastRawAngle = rawAngle
+      draftArc.previewAngle = rawAngle
+      draftArc.dragPointerId = null
+      return
+    }
+    if (draftArc.stage === "end"){
+      updateDraftArcSweepToWorld(draftArc, world)
+      if (commitDraftArc(draftArc)) draftArc = null
+      return
+    }
   }
 
   if (tool==="space"){
@@ -3660,16 +4056,25 @@ canvas.addEventListener("pointerup", (e)=>{
     draftRect=null
   } else if (tool==="free"){
     if (freeDraw && freeDraw.length>=2){
-      pushUndo()
       const pts = simplifyFree(freeDraw, 6)
-      dungeon.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), points: pts })
+      commitDraftPath(pts)
+    }
+    freeDraw=null
+  } else if (tool==="water"){
+    if (freeDraw && freeDraw.length>=2){
+      pushUndo()
+      const pts = simplifyFree(freeDraw, 4)
+      if (!dungeon.water || typeof dungeon.water !== "object") dungeon.water = { paths: [] }
+      if (!Array.isArray(dungeon.water.paths)) dungeon.water.paths = []
+      dungeon.water.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), width: Number(dungeon.style?.water?.width || 52), points: pts })
+      bumpWaterVersion()
+      compiledSig = ""
     }
     freeDraw=null
   } else if (tool==="path"){
     if (isDoubleTap && draft && draft.type==="path"){
       if (draft.points.length>=2){
-        pushUndo()
-        dungeon.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), points: draft.points })
+        commitDraftPath(draft.points)
       }
       draft=null
     } else {
@@ -3702,6 +4107,7 @@ canvas.addEventListener("pointercancel", (e)=>{
   freeDraw=null
   draft=null
   draftShape=null
+  draftArc=null
   shapeDrag=null
   propTransformDrag=null
   textDrag=null
@@ -3785,7 +4191,7 @@ function drawDraftOverlay(){
 
     // Show corridor width preview immediately at the first point
     const pFirst = camera.worldToScreen(draft.points[0])
-    const r = Math.max(2, (dungeon.style.corridorWidth * camera.zoom) * 0.5)
+    const r = Math.max(2, (currentCorridorWidth() * camera.zoom) * 0.5)
     ctx.setLineDash([])
     ctx.fillStyle = fill
     ctx.strokeStyle = stroke
@@ -3798,7 +4204,7 @@ function drawDraftOverlay(){
     if (draft.points.length>=2){
       ctx.setLineDash([])
       ctx.strokeStyle = fill
-      ctx.lineWidth = dungeon.style.corridorWidth * camera.zoom
+      ctx.lineWidth = currentCorridorWidth() * camera.zoom
       ctx.lineCap = "round"; ctx.lineJoin = "round"
       ctx.beginPath()
       draft.points.forEach((p,i)=>{
@@ -3810,7 +4216,7 @@ function drawDraftOverlay(){
   }
 
   // Free draw preview: translucent corridor stroke
-  if (freeDraw && freeDraw.length>1){
+  if (tool!=="water" && freeDraw && freeDraw.length>1){
     ctx.setLineDash([6,6])
     ctx.strokeStyle = stroke
     ctx.lineWidth = 1
@@ -3823,7 +4229,7 @@ function drawDraftOverlay(){
 
     ctx.setLineDash([])
     ctx.strokeStyle = fill
-    ctx.lineWidth = dungeon.style.corridorWidth * camera.zoom
+    ctx.lineWidth = currentCorridorWidth() * camera.zoom
     ctx.lineCap = "round"; ctx.lineJoin = "round"
     ctx.beginPath()
     freeDraw.forEach((p,i)=>{
@@ -3833,6 +4239,93 @@ function drawDraftOverlay(){
     ctx.stroke()
   }
 
+
+  if (tool==="water" && freeDraw && freeDraw.length>1){
+    const waterStyle = dungeon.style.water || {}
+    const wcol = waterStyle.color || "#6bb8ff"
+    const alpha = Math.max(0.08, Math.min(0.85, Number(waterStyle.opacity || 0.4)))
+    ctx.setLineDash([])
+    ctx.strokeStyle = wcol
+    ctx.globalAlpha = alpha * 0.9
+    ctx.lineWidth = Number(waterStyle.width || 52) * camera.zoom
+    ctx.lineCap = "round"; ctx.lineJoin = "round"
+    ctx.beginPath()
+    freeDraw.forEach((p,i)=>{
+      const s = camera.worldToScreen(p)
+      i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+    })
+    ctx.stroke()
+    ctx.globalAlpha = 1
+    if (waterStyle.outlineEnabled !== false){
+      ctx.strokeStyle = underMode ? "rgba(220,80,80,0.95)" : (waterStyle.outlineColor || "rgba(31,41,51,0.95)")
+      ctx.lineWidth = Math.max(2, (Number(waterStyle.outlinePx || 8)))
+      ctx.beginPath()
+      freeDraw.forEach((p,i)=>{
+        const s = camera.worldToScreen(p)
+        i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+      })
+      ctx.stroke()
+    }
+  }
+
+  if (draftArc){
+    const centerScreen = camera.worldToScreen(draftArc.center)
+    const radiusPx = Math.max(1, draftArc.radius * camera.zoom)
+    ctx.setLineDash([6,6])
+    ctx.strokeStyle = stroke
+    ctx.lineWidth = 1.25
+    ctx.beginPath()
+    ctx.arc(centerScreen.x, centerScreen.y, radiusPx, 0, Math.PI * 2)
+    ctx.stroke()
+
+    ctx.setLineDash([])
+    ctx.fillStyle = fill
+    ctx.beginPath()
+    ctx.arc(centerScreen.x, centerScreen.y, 4, 0, Math.PI * 2)
+    ctx.fill()
+
+    if (draftArc.stage === "radius"){
+      const handle = { x: draftArc.center.x + Math.cos(draftArc.previewAngle || 0) * draftArc.radius, y: draftArc.center.y + Math.sin(draftArc.previewAngle || 0) * draftArc.radius }
+      const hs = camera.worldToScreen(handle)
+      ctx.strokeStyle = stroke
+      ctx.lineWidth = 1.25
+      ctx.beginPath()
+      ctx.moveTo(centerScreen.x, centerScreen.y)
+      ctx.lineTo(hs.x, hs.y)
+      ctx.stroke()
+    } else {
+      const preview = getArcPreviewData(draftArc)
+      const start = { x: draftArc.center.x + Math.cos(preview.startAngle) * preview.radius, y: draftArc.center.y + Math.sin(preview.startAngle) * preview.radius }
+      const ss = camera.worldToScreen(start)
+      ctx.fillStyle = stroke
+      ctx.beginPath()
+      ctx.arc(ss.x, ss.y, 4.5, 0, Math.PI * 2)
+      ctx.fill()
+      if (preview && (preview.isCircle || Math.abs(preview.sweep) > 1e-3)){
+        const pts = sampleArcPoints(preview.center, preview.radius, preview.startAngle, preview.endAngle, { closeLoop: preview.isCircle })
+        ctx.strokeStyle = fill
+        ctx.lineWidth = currentCorridorWidth() * camera.zoom
+        ctx.lineCap = "round"; ctx.lineJoin = "round"
+        ctx.beginPath()
+        pts.forEach((p,i)=>{
+          const s = camera.worldToScreen(p)
+          i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+        })
+        ctx.stroke()
+
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = 1.5
+        ctx.setLineDash([6,6])
+        ctx.beginPath()
+        pts.forEach((p,i)=>{
+          const s = camera.worldToScreen(p)
+          i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+        })
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
+  }
   // Draft shape preview
   if (draftShape){
     const pts = []
@@ -3877,7 +4370,7 @@ function loop(){
     ctx.fillStyle = dungeon.style.backgroundColor || "#f8f7f4"
     ctx.fillRect(0,0,W,H)
   }
-  drawGrid(ctx, camera, dungeon.gridSize, W, H)
+  drawCompiledExteriorGrid(ctx, camera, compiledCache, dungeon, W, H)
 
   drawCompiledBase(ctx, camera, compiledCache, dungeon, W, H)
   drawPlacedProps()
