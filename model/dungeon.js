@@ -5,6 +5,7 @@ export class Dungeon {
     this.spaces = []        // {id, polygon: [{x,y}...]}
     this.paths = []         // {id, points:[{x,y}...]}
     this.water = { paths: [] } // water brush strokes {id, points:[{x,y}...], mode, width, seq}
+    this.lines = []        // drawn line overlay strokes {id, points:[{x,y}...], mode, width, dashed, seq}
     this.shapes = []        // {id, kind:'regular', sides, center, radius, rotation, mode:'add'|'subtract'}
     this.__versions = { interior: 1, water: 1 }
     this.style = {
@@ -40,6 +41,12 @@ export class Dungeon {
         rippleInsetMax: 54,
         rippleLengthMin: 28,
         rippleLengthMax: 62
+      },
+      lines: {
+        color: "#1f2933",
+        width: 1.75,
+        dashed: false,
+        dashPx: 18
       },
     }
   }

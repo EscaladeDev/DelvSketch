@@ -17,12 +17,14 @@ let compiledCache = null
 let compiledSig = ""
 
 function ensureCompileVersions(){
-  if (!dungeon.__versions || typeof dungeon.__versions !== "object") dungeon.__versions = { interior: 1, water: 1 }
+  if (!dungeon.__versions || typeof dungeon.__versions !== "object") dungeon.__versions = { interior: 1, water: 1, lines: 1 }
   if (!Number.isFinite(Number(dungeon.__versions.interior))) dungeon.__versions.interior = 1
   if (!Number.isFinite(Number(dungeon.__versions.water))) dungeon.__versions.water = 1
+  if (!Number.isFinite(Number(dungeon.__versions.lines))) dungeon.__versions.lines = 1
 }
 function bumpInteriorVersion(){ ensureCompileVersions(); dungeon.__versions.interior += 1 }
 function bumpWaterVersion(){ ensureCompileVersions(); dungeon.__versions.water += 1 }
+function bumpLineVersion(){ ensureCompileVersions(); dungeon.__versions.lines += 1 }
 ensureCompileVersions()
 
 // Global edit ordering across ALL tool types (rectangle/path/free/polygon).
@@ -33,6 +35,7 @@ function normalizeEditSequences(){
   const all = [
     ...(Array.isArray(dungeon.spaces) ? dungeon.spaces : []),
     ...(Array.isArray(dungeon.paths) ? dungeon.paths : []),
+    ...(Array.isArray(dungeon.lines) ? dungeon.lines : []),
     ...(Array.isArray(dungeon.shapes) ? dungeon.shapes : [])
   ]
   let fallback = 1
@@ -43,7 +46,7 @@ function normalizeEditSequences(){
 }
 function refreshEditSeqCounter(){
   let maxSeq = 0
-  for (const arr of [dungeon.spaces, dungeon.paths, dungeon.shapes]){
+  for (const arr of [dungeon.spaces, dungeon.paths, dungeon.lines, dungeon.shapes]){
     for (const item of (arr || [])){
       const s = Number(item && item.seq)
       if (Number.isFinite(s) && s > maxSeq) maxSeq = s
@@ -55,6 +58,7 @@ function resetTransientDrafts(){
   draft = null
   draftRect = null
   freeDraw = null
+  lineDraw = null
   draftShape = null
   draftArc = null
   shapeDrag = null
@@ -77,9 +81,11 @@ function syncToolUI(){
   })
   const showCorridorWidth = ["path","free","arc"].includes(tool)
   const showPolySides = tool === "poly"
-  const showToolOptions = showCorridorWidth || showPolySides
+  const showLineOptions = tool === "line"
+  const showToolOptions = showCorridorWidth || showPolySides || showLineOptions
   const corridorToolRow = document.getElementById("corridorToolRow")
   const polyToolRow = document.getElementById("polyToolRow")
+  const lineToolRow = document.getElementById("lineToolRow")
   if (polyToolOptions) {
     polyToolOptions.classList.toggle("hidden", !showToolOptions)
     polyToolOptions.hidden = !showToolOptions
@@ -91,6 +97,10 @@ function syncToolUI(){
   if (polyToolRow) {
     polyToolRow.classList.toggle("hidden", !showPolySides)
     polyToolRow.hidden = !showPolySides
+  }
+  if (lineToolRow) {
+    lineToolRow.classList.toggle("hidden", !showLineOptions)
+    lineToolRow.hidden = !showLineOptions
   }
 }
 function setTool(t){
@@ -193,6 +203,7 @@ function dsSvgIcon(name){
     path: `<svg ${common}><circle cx="6" cy="17" r="2"/><circle cx="18" cy="7" r="2"/><path d="M8 16l8-8"/></svg>`,
     free: `<svg ${common}><path d="M4 16c3-8 6 8 9 0s4-7 7-3"/></svg>`,
     water: `<svg ${common}><path d="M12 3c3 4 6 7 6 10a6 6 0 1 1-12 0c0-3 3-6 6-10z"/></svg>`,
+    line: `<svg ${common}><path d="M14.5 5.5 18.5 9.5"/><path d="M6 18l2.4-7.2 8.1-8.1 4 4-8.1 8.1z"/><path d="M5.2 20.2l3.3-.9-2.4-2.4z"/></svg>`,
     arc: `<svg ${common}><path d="M6 18a8 8 0 1 1 12 0"/><path d="M18 18h-4"/></svg>`,
     poly: `<svg ${common}><path d="M12 4l7 5-3 9H8L5 9z"/></svg>`,
     text: `<svg ${common}><path d="M4 6h16"/><path d="M12 6v14"/><path d="M8 10h8"/></svg>`,
@@ -262,10 +273,10 @@ function iconizeButton(btn, { icon, label, iconOnly = false, textOnly = false } 
 
 function applyToolbarUiOverhaul(){
   injectToolbarIconStyles();
-  const toolIconMap = { select:'select', space:'space', path:'path', free:'free', water:'water', arc:'arc', poly:'poly', text:'text', erase:'erase' };
+  const toolIconMap = { select:'select', space:'space', path:'path', free:'free', line:'line', water:'water', arc:'arc', poly:'poly', text:'text', erase:'erase' };
   toolButtons.forEach(btn => {
     const toolName = btn.dataset.tool || 'tool';
-    const nice = ({space:'Rectangle',path:'Path',free:'Free',water:'Water',arc:'Arc',poly:'Polygon',text:'Text',select:'Select',erase:'Erase'})[toolName] || toolName;
+    const nice = ({space:'Rectangle',path:'Straight Path',free:'Path',line:'Draw',water:'Water',arc:'Arc',poly:'Polygon',text:'Text',select:'Select',erase:'Erase'})[toolName] || toolName;
     if (toolName === 'text') iconizeButton(btn, { label: 'Text', textOnly: true });
     else iconizeButton(btn, { icon: toolIconMap[toolName] || 'select', label: nice, iconOnly: true });
   });
@@ -293,6 +304,7 @@ const transparentBg = document.getElementById("transparentBg")
 const polyToolOptions = document.getElementById("polyToolOptions")
 const polySides = document.getElementById("polySides")
 const polySidesOut = document.getElementById("polySidesOut")
+const lineDashed = document.getElementById("lineDashed")
 const snapDiv = document.getElementById("snapDiv")
 const snapDivOut = document.getElementById("snapDivOut")
 const gridLineWidth = document.getElementById("gridLineWidth")
@@ -548,6 +560,12 @@ function syncUI(){
   if (propSnapToggle) propSnapToggle.checked = !!dungeon.style.propSnapEnabled
   if (typeof dungeon.style.showTextPreview !== "boolean") dungeon.style.showTextPreview = true
   if (typeof dungeon.style.showTextExport !== "boolean") dungeon.style.showTextExport = true
+  if (!dungeon.style.lines || typeof dungeon.style.lines !== "object") dungeon.style.lines = {}
+  if (!dungeon.style.lines.color) dungeon.style.lines.color = dungeon.style?.water?.rippleColor || "#1f2933"
+  if (!Number.isFinite(Number(dungeon.style.lines.width))) dungeon.style.lines.width = 1.75
+  if (typeof dungeon.style.lines.dashed !== "boolean") dungeon.style.lines.dashed = false
+  if (!Number.isFinite(Number(dungeon.style.lines.dashPx))) dungeon.style.lines.dashPx = 18
+  if (lineDashed) lineDashed.checked = !!dungeon.style.lines.dashed
   if (!dungeon.style.water || typeof dungeon.style.water !== "object") dungeon.style.water = {}
   if (typeof dungeon.style.water.enabled !== "boolean") dungeon.style.water.enabled = true
   if (typeof dungeon.style.water.outlineEnabled !== "boolean") dungeon.style.water.outlineEnabled = (typeof dungeon.style.water.edgeLines === "boolean") ? dungeon.style.water.edgeLines : true
@@ -650,6 +668,7 @@ if (waterOpacity) waterOpacity.addEventListener("input", () => { dungeon.style.w
 if (waterWidth) waterWidth.addEventListener("input", () => { dungeon.style.water.width = Number(waterWidth.value) })
 if (waterOutlineEnabled) waterOutlineEnabled.addEventListener("change", () => { dungeon.style.water.outlineEnabled = !!waterOutlineEnabled.checked; compiledSig = "" })
 if (waterRipplesEnabled) waterRipplesEnabled.addEventListener("change", () => { dungeon.style.water.ripplesEnabled = !!waterRipplesEnabled.checked; compiledSig = "" })
+if (lineDashed) lineDashed.addEventListener("change", () => { if (!dungeon.style.lines || typeof dungeon.style.lines !== "object") dungeon.style.lines = {}; dungeon.style.lines.dashed = !!lineDashed.checked })
 
 if (textContentInput) textContentInput.addEventListener('input', () => { const t = getSelectedText(); if (t) { t.text = textContentInput.value; if (textEditorState && textEditorState.id === t.id && textCanvasEditor && document.activeElement !== textCanvasEditor) textCanvasEditor.value = t.text; if (textEditorState && textEditorState.id === t.id) positionTextEditorOverlayForText(t) } })
 if (textFontFamily) textFontFamily.addEventListener('change', async () => { const t = getSelectedText(); if (!t) return; const nextFont = textFontFamily.value; if (!hasFontOption(nextFont) && nextFont) { await loadGoogleFontFamily(nextFont) } t.fontFamily = nextFont; if (googleFontFamilyInput && !['Minecraft Five','system-ui','serif','monospace'].includes(nextFont)) googleFontFamilyInput.value = nextFont; if (textEditorState && textEditorState.id === t.id) positionTextEditorOverlayForText(t) })
@@ -682,7 +701,7 @@ if (textCanvasEditor) {
 // undo/redo
 const undoStack=[], redoStack=[]
 updateHistoryButtons()
-function snapshot(){ return JSON.stringify({ gridSize:dungeon.gridSize, subSnapDiv:dungeon.subSnapDiv, spaces:dungeon.spaces, paths:dungeon.paths, water:dungeon.water, shapes:dungeon.shapes, style:dungeon.style, placedProps, placedTexts, selectedPropId, selectedTextId }) }
+function snapshot(){ return JSON.stringify({ gridSize:dungeon.gridSize, subSnapDiv:dungeon.subSnapDiv, spaces:dungeon.spaces, paths:dungeon.paths, water:dungeon.water, lines:dungeon.lines, shapes:dungeon.shapes, style:dungeon.style, placedProps, placedTexts, selectedPropId, selectedTextId }) }
 function restore(s){
   const d = JSON.parse(s)
   // Backward compatible: restore either plain dungeon snapshot or wrapped save object.
@@ -690,7 +709,7 @@ function restore(s){
   setDungeonFromObject(d)
   placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(normalizePlacedPropObj).filter(p => p && p.url) : placedProps
   placedTexts = Array.isArray(d.placedTexts) ? d.placedTexts.map(normalizeTextObj) : []
-  draft=null; draftRect=null; freeDraw=null; draftShape=null; draftArc=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
+  draft=null; draftRect=null; freeDraw=null; lineDraw=null; draftShape=null; draftArc=null; selectedShapeId=null; selectedPropId=null; selectedTextId=null; shapeDrag=null; propTransformDrag=null; textDrag=null; eraseStroke=null
   syncTextPanelVisibility()
   underMode = false
   syncUI()
@@ -1950,10 +1969,11 @@ function setDungeonFromObject(d){
 
   // Prefer exact serialized edit geometry if present (preserves add/subtract ordering perfectly).
   const raw = (d.raw && typeof d.raw === "object") ? d.raw : null
-  if (raw && (Array.isArray(raw.spaces) || Array.isArray(raw.paths) || Array.isArray(raw.shapes))) {
+  if (raw && (Array.isArray(raw.spaces) || Array.isArray(raw.paths) || Array.isArray(raw.lines) || Array.isArray(raw.shapes))) {
     dungeon.spaces = Array.isArray(raw.spaces) ? raw.spaces : []
     dungeon.paths  = Array.isArray(raw.paths)  ? raw.paths  : []
     dungeon.water  = (raw.water && typeof raw.water === "object") ? raw.water : { paths: [] }
+    dungeon.lines  = Array.isArray(raw.lines) ? raw.lines : []
     dungeon.shapes = Array.isArray(raw.shapes) ? raw.shapes : []
   } else if (d.geometry && Array.isArray(d.geometry.regions)) {
     // Compact fallback: reconstruct as additive boundary regions.
@@ -1969,11 +1989,13 @@ function setDungeonFromObject(d){
       }))
     dungeon.paths = []
     dungeon.water = { paths: [] }
+    dungeon.lines = []
     dungeon.shapes = []
   } else {
     dungeon.spaces = Array.isArray(d.spaces) ? d.spaces : []
     dungeon.paths = Array.isArray(d.paths) ? d.paths : []
     dungeon.water = (d.water && typeof d.water === "object") ? d.water : { paths: [] }
+    dungeon.lines = Array.isArray(d.lines) ? d.lines : []
     dungeon.shapes = Array.isArray(d.shapes) ? d.shapes : []
   }
 
@@ -2000,6 +2022,15 @@ function setDungeonFromObject(d){
     if (!Number.isFinite(Number(wp.seq))) wp.seq = nextEditSeq()
     if (!Number.isFinite(Number(wp.width))) wp.width = Number(dungeon.style?.water?.width || 52)
   }
+  if (!Array.isArray(dungeon.lines)) dungeon.lines = []
+  for (const ln of dungeon.lines) {
+    if (!ln.id) ln.id = crypto.randomUUID()
+    if (!ln.mode) ln.mode = "add"
+    if (!Array.isArray(ln.points)) ln.points = []
+    if (!Number.isFinite(Number(ln.seq))) ln.seq = nextEditSeq()
+    if (!Number.isFinite(Number(ln.width))) ln.width = Number(dungeon.style?.lines?.width || 1.75)
+    ln.dashed = ln.dashed === true
+  }
   for (const sh of dungeon.shapes) {
     if (!sh.id) sh.id = crypto.randomUUID()
     if (!sh.mode) sh.mode = "add"
@@ -2021,6 +2052,9 @@ function setDungeonFromObject(d){
     }
     if (d.style.water && typeof d.style.water === "object") {
       nextStyle.water = Object.assign({}, dungeon.style.water, d.style.water)
+    }
+    if (d.style.lines && typeof d.style.lines === "object") {
+      nextStyle.lines = Object.assign({}, dungeon.style.lines, d.style.lines)
     }
   }
   nextStyle.polySides = Math.max(3, Math.min(12, Math.round(safeNum(nextStyle.polySides, 6))))
@@ -2088,6 +2122,7 @@ function getSaveMapObject(){
       spaces: cloneJson(dungeon.spaces),
       paths: cloneJson(dungeon.paths),
       water: cloneJson(dungeon.water),
+      lines: cloneJson(dungeon.lines),
       shapes: dungeon.shapes.map(s => ({...s, _poly: undefined}))
     }
   }
@@ -2104,7 +2139,7 @@ function getSaveMapObject(){
   return {
     app: "Dungeon Sketch",
     format: "dungeon-sketch-map",
-    version: 4,
+    version: 5,
     savedAt: new Date().toISOString(),
     camera: { x: camera.x, y: camera.y, zoom: camera.zoom },
     dungeon: Object.assign(dungeonData, { placedProps: cloneJson(placedProps || []), placedTexts: cloneJson(placedTexts || []) })
@@ -2200,6 +2235,7 @@ function clearMapContents(){
   dungeon.spaces = [];
   dungeon.paths = [];
   dungeon.water = { paths: [] };
+  dungeon.lines = [];
   dungeon.shapes = [];
   placedProps = [];
   placedTexts = [];
@@ -2213,12 +2249,14 @@ function clearMapContents(){
   draft = null;
   draftRect = null;
   freeDraw = null;
+  lineDraw = null;
   draftShape = null;
   draftArc = null;
   eraseStroke = null;
 
   bumpInteriorVersion();
   bumpWaterVersion();
+  bumpLineVersion();
   refreshEditSeqCounter();
   syncTextPanelVisibility();
   updateHistoryButtons();
@@ -2289,6 +2327,7 @@ function renderSceneToCanvasForBounds(targetCanvas, worldBounds){
   const cache = ensureCompiled()
   drawCompiledExteriorGrid(tctx, exportCam, cache, dungeon, tw, th, exportGridLineWidthScale)
   drawCompiledBase(tctx, exportCam, cache, dungeon, tw, th, exportGridLineWidthScale)
+  drawLinesTo(tctx, exportCam)
   drawPlacedPropsTo(tctx, exportCam, tw, th, cache)
   drawTextsTo(tctx, exportCam, { forExport:true })
   return { ctx: tctx, cam: exportCam }
@@ -2778,6 +2817,12 @@ function getExportWorldBounds(options = {}){
   if (cache?.contentBounds) b = unionBounds(b, cache.contentBounds)
   else if (cache?.bounds) b = unionBounds(b, cache.bounds)
 
+  if (Array.isArray(dungeon.lines)) {
+    for (const line of dungeon.lines){
+      b = unionBounds(b, lineStrokeBounds(line))
+    }
+  }
+
   if (Array.isArray(placedProps)){
     for (const a of placedProps){
       if (!a) continue
@@ -3222,6 +3267,7 @@ async function exportMultipagePDF(){
 let draft = null          // {type:'path', points:[]}
 let draftRect = null      // {a,b}
 let freeDraw = null       // [{x,y}...]
+let lineDraw = null       // { points:[{x,y}...], dashed }
 let draftShape = null     // {center, radius, rotation, sides}
 let draftArc = null       // {stage, center, radius, startAngle, endAngle, sweepAccum, lastRawAngle, previewAngle, dragPointerId}
 let selectedShapeId = null
@@ -3303,6 +3349,78 @@ function simplifyFree(points, minDist=7){
 function subGrid(){ return dungeon.gridSize / (dungeon.subSnapDiv || 4) }
 function currentDrawMode(){ return underMode ? "subtract" : "add" }
 function currentCorridorWidth(){ return Math.max(12, Number(dungeon.style?.corridorWidth || 48) || 48) }
+function currentLineBaseWorldWidth(){
+  const fallbackRipplePx = Math.max(1, Number(dungeon.style?.water?.ripplePx || 7) || 7)
+  const fallbackPpu = Math.max(1, Number(compiledCache?.ppu || 4) || 4)
+  return Math.max(0.5, Number(dungeon.style?.lines?.width || (fallbackRipplePx / fallbackPpu)) || (fallbackRipplePx / fallbackPpu))
+}
+function currentLineWorldWidth(mode = currentDrawMode()){
+  return mode === "subtract" ? currentCorridorWidth() : currentLineBaseWorldWidth()
+}
+function currentLineDashWorld(){
+  const fallbackPpu = Math.max(1, Number(compiledCache?.ppu || 4) || 4)
+  return Math.max(1, Number(dungeon.style?.lines?.dashPx || 18) || 18) / fallbackPpu
+}
+function lineStrokeBounds(line){
+  if (!line || !Array.isArray(line.points) || !line.points.length) return null
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity
+  for (const pt of line.points){
+    const x = Number(pt?.x), y = Number(pt?.y)
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+    if (x < minx) minx = x
+    if (y < miny) miny = y
+    if (x > maxx) maxx = x
+    if (y > maxy) maxy = y
+  }
+  if (!Number.isFinite(minx) || !Number.isFinite(miny) || !Number.isFinite(maxx) || !Number.isFinite(maxy)) return null
+  const pad = Math.max(1, Number(line.width || currentLineWorldWidth()) || 1) * 0.5 + subGrid() * 0.25
+  return { minx:minx-pad, miny:miny-pad, maxx:maxx+pad, maxy:maxy+pad }
+}
+function commitLineStroke(points, extra = {}){
+  if (!Array.isArray(points) || points.length < 2) return false
+  pushUndo()
+  if (!Array.isArray(dungeon.lines)) dungeon.lines = []
+  dungeon.lines.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), width: currentLineWorldWidth(), dashed: dungeon.style?.lines?.dashed === true, points, ...extra })
+  bumpLineVersion()
+  return true
+}
+function drawLineStrokePath(context, cam, points){
+  if (!Array.isArray(points) || points.length < 2) return false
+  context.beginPath()
+  points.forEach((p,i)=>{
+    const s = cam.worldToScreen(p)
+    if (i===0) context.moveTo(s.x, s.y)
+    else context.lineTo(s.x, s.y)
+  })
+  return true
+}
+function drawLinesTo(targetCtx, cam){
+  if (!Array.isArray(dungeon.lines) || !dungeon.lines.length) return
+  const liveCanvasCtx = targetCtx === ctx
+  const logicalW = liveCanvasCtx ? Math.max(1, W|0) : Math.max(1, targetCtx.canvas.width|0)
+  const logicalH = liveCanvasCtx ? Math.max(1, H|0) : Math.max(1, targetCtx.canvas.height|0)
+  const layer = document.createElement("canvas")
+  layer.width = logicalW
+  layer.height = logicalH
+  const lctx = layer.getContext("2d", { alpha:true })
+  lctx.clearRect(0,0,logicalW,logicalH)
+  lctx.lineCap = "round"
+  lctx.lineJoin = "round"
+  lctx.strokeStyle = dungeon.style?.lines?.color || dungeon.style?.water?.rippleColor || "#1f2933"
+  const ops = dungeon.lines.slice().sort((a,b)=> Number(a?.seq || 0) - Number(b?.seq || 0))
+  for (const line of ops){
+    if (!Array.isArray(line?.points) || line.points.length < 2) continue
+    lctx.save()
+    lctx.globalCompositeOperation = (line.mode === "subtract") ? "destination-out" : "source-over"
+    lctx.setLineDash(line.dashed ? [Math.max(2, currentLineDashWorld() * cam.zoom), Math.max(2, currentLineDashWorld() * cam.zoom)] : [])
+    lctx.lineWidth = Math.max(1, Number(line.width || currentLineWorldWidth()) * cam.zoom)
+    drawLineStrokePath(lctx, cam, line.points)
+    lctx.stroke()
+    lctx.restore()
+  }
+  if (liveCanvasCtx) targetCtx.drawImage(layer, 0, 0, logicalW, logicalH)
+  else targetCtx.drawImage(layer, 0, 0)
+}
 function commitDraftPath(points, extra = {}){
   if (!Array.isArray(points) || points.length < 2) return false
   pushUndo()
@@ -3724,7 +3842,7 @@ canvas.addEventListener("pointerdown", (e)=>{
 
   if (e.pointerType==="mouse" && (e.button===1 || e.button===2)){
     panDrag = { start:{x:e.clientX,y:e.clientY}, cam:{x:camera.x,y:camera.y} }
-    draftRect=null; freeDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
+    draftRect=null; freeDraw=null; lineDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
     return
   }
   if (pointers.size===2){
@@ -3732,7 +3850,7 @@ canvas.addEventListener("pointerdown", (e)=>{
     const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2}
     const dd=Math.hypot(a.x-b.x,a.y-b.y)
     gesture={ lastDist:Math.max(dd, 0.0001), lastMid:mid }
-    draftRect=null; freeDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
+    draftRect=null; freeDraw=null; lineDraw=null; draft=null; draftShape=null; draftArc=null; shapeDrag=null; propTransformDrag=null; eraseStroke=null
     return
   }
 
@@ -3841,6 +3959,9 @@ canvas.addEventListener("pointerdown", (e)=>{
     draftRect = { a:w, b:w }
   } else if (tool === "free" || tool === "water"){
     freeDraw = [ snapSoft(world, subGrid(), dungeon.style.snapStrength) ]
+  } else if (tool === "line"){
+    const start = snapSoft(world, subGrid(), dungeon.style.snapStrength)
+    lineDraw = { start, points:[start], dashed: dungeon.style?.lines?.dashed === true }
   } else if (tool === "arc"){
     if (!draftArc){
       draftArc = {
@@ -3987,6 +4108,17 @@ canvas.addEventListener("pointermove", (e)=>{
   if ((tool==="free" || tool==="water") && freeDraw && pointers.size===1){
     freeDraw.push(snapSoft(world, subGrid(), dungeon.style.snapStrength))
   }
+  if (tool==="line" && lineDraw && pointers.size===1){
+    const snapped = snapSoft(world, subGrid(), dungeon.style.snapStrength)
+    if (e.shiftKey){
+      lineDraw.points = [lineDraw.start, snapped]
+    } else {
+      const pts = lineDraw.points
+      const last = pts[pts.length - 1]
+      if (!last || dist(snapped, last) >= Math.max(2, subGrid() * 0.2)) pts.push(snapped)
+      else pts[pts.length - 1] = snapped
+    }
+  }
 })
 
 let lastTapTime=0, lastTapPos=null
@@ -4093,6 +4225,12 @@ canvas.addEventListener("pointerup", (e)=>{
       commitDraftPath(pts)
     }
     freeDraw=null
+  } else if (tool==="line") {
+    if (lineDraw && Array.isArray(lineDraw.points) && lineDraw.points.length >= 2){
+      const pts = lineDraw.points.length === 2 ? lineDraw.points.slice() : simplifyFree(lineDraw.points, Math.max(3, subGrid() * 0.35))
+      commitLineStroke(pts, { dashed: lineDraw.dashed === true })
+    }
+    lineDraw = null
   } else if (tool==="water"){
     if (freeDraw && freeDraw.length>=2){
       pushUndo()
@@ -4138,6 +4276,7 @@ canvas.addEventListener("pointercancel", (e)=>{
   panDrag=null
   draftRect=null
   freeDraw=null
+  lineDraw=null
   draft=null
   draftShape=null
   draftArc=null
@@ -4245,6 +4384,37 @@ function drawDraftOverlay(){
         i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
       })
       ctx.stroke()
+    }
+  }
+
+  if (tool==="line" && lineDraw && lineDraw.points.length>1){
+    ctx.setLineDash(lineDraw.dashed ? [Math.max(4, currentLineDashWorld() * camera.zoom), Math.max(4, currentLineDashWorld() * camera.zoom)] : [6,6])
+    ctx.strokeStyle = stroke
+    ctx.lineWidth = Math.max(1, currentLineWorldWidth() * camera.zoom)
+    ctx.lineCap = "round"; ctx.lineJoin = "round"
+    ctx.beginPath()
+    lineDraw.points.forEach((p,i)=>{
+      const s = camera.worldToScreen(p)
+      i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+    })
+    ctx.stroke()
+    ctx.setLineDash([])
+  }
+  if (tool === "line" && underMode){
+    const previewRadius = Math.max(6, currentLineWorldWidth("subtract") * camera.zoom * 0.5)
+    const cx = Number(lastCursorScreen?.x || 0)
+    const cy = Number(lastCursorScreen?.y || 0)
+    if (Number.isFinite(cx) && Number.isFinite(cy)){
+      ctx.save()
+      ctx.setLineDash([8, 6])
+      ctx.strokeStyle = "rgba(220,80,80,0.95)"
+      ctx.fillStyle = "rgba(220,80,80,0.10)"
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(cx, cy, previewRadius, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+      ctx.restore()
     }
   }
 
@@ -4406,6 +4576,7 @@ function loop(){
   drawCompiledExteriorGrid(ctx, camera, compiledCache, dungeon, W, H)
 
   drawCompiledBase(ctx, camera, compiledCache, dungeon, W, H)
+  drawLinesTo(ctx, camera)
   drawPlacedProps()
   drawTextsTo(ctx, camera, { forExport:false })
   drawPropSelection()

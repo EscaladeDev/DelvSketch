@@ -24,8 +24,9 @@
           <div class="toolbarRow">
             <button class="tool" data-tool="select" title="Select/move/rotate props">Select</button>
             <button class="tool primary" data-tool="space" title="Rectangle (drag)">Rectangle</button>
-            <button class="tool" data-tool="path" title="Path (tap points)">Line</button>
-            <button class="tool" data-tool="free" title="Free path (draw)">Draw</button>
+            <button class="tool" data-tool="path" title="Straight path (tap points)">Straight Path</button>
+            <button class="tool" data-tool="free" title="Path (draw)">Path</button>
+            <button class="tool" data-tool="line" title="Draw thin lines">Draw</button>
             <button class="tool" data-tool="water" title="Paint water">Water</button>
             <button class="tool" data-tool="arc" title="Arc / circle wall">Arc</button>
             <button class="tool" data-tool="poly" title="Regular polygon">Polygon</button>
@@ -40,6 +41,10 @@
             <label id="polyToolRow" class="toolInlineRange hidden" hidden>
               <span>Polygon sides <strong id="polySidesOut">6</strong></span>
               <input id="polySides" type="range" min="3" max="12" step="1" value="6">
+            </label>
+            <label id="lineToolRow" class="toolInlineRange hidden" hidden>
+              <span>Draw style</span>
+              <span class="toolInlineCheck"><input id="lineDashed" type="checkbox"><span>Dashed</span></span>
             </label>
           </div>
         </details>
@@ -327,12 +332,12 @@
                                 <div class="hint">
                                 <div><b>Select</b>: move props by dragging; drag the blue handle to rotate (toggle prop grid snap on/off)</div>
                                 <div><b>Rectangle</b>: drag to create a snapped rectangle</div>
-                                <div><b>Path</b>: tap to add points, double-tap to end</div>
+                                <div><b>Straight path</b>: tap to add points, double-tap to end</div>
                                 <div><b>Arc</b>: drag out radius, then drag a sweep; near a full loop snaps to a circle</div>
-                                <div><b>Free</b>: draw with one finger, lift to finish</div>
+                                <div><b>Path</b>: draw with one finger, lift to finish</div>
                                 <div><b>Polygon</b>: tap+drag to create a regular polygon; use the Polygon sides slider (3–12), then drag handles to resize/rotate; tap center to move</div>
                                 <div><b>Erase</b>: drag a snapped box on the sub-grid to cut out volume cells (finer than the visible grid)</div>
-                                <div><b>Erase</b> toggle: turns the current drawing tool into subtract mode (Rectangle / Path / Free / Polygon)</div>
+                                <div><b>Erase</b> toggle: turns the current drawing tool into subtract mode (Rectangle / Straight path / Path / Draw / Polygon)</div>
                         <div><b>Mouse/Trackpad</b>: wheel pan • pinch/ctrl+wheel zoom (cursor-centered) • right/middle drag pan</div>
                                 <div><b>Touch</b>: two-finger drag pan • pinch zoom</div>
                                 </div>
@@ -384,7 +389,7 @@
         <div class="coverFeatureList">
           <article class="coverFeatureItem">
             <h3>Sketch quickly</h3>
-            <p>Rectangle, line, freehand, arc, polygon, water, and text tools keep layout ideation fast.</p>
+            <p>Rectangle, draw, path, straight path, arc, polygon, water, and text tools keep layout ideation fast.</p>
           </article>
           <article class="coverFeatureItem">
             <h3>Style clearly</h3>

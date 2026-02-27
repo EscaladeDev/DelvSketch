@@ -2930,3 +2930,7 @@ body[data-theme="dark"] #btnBugReport:focus-visible{
   border-color: rgba(132, 205, 248, 0.34) !important;
   box-shadow: 0 0 0 1px rgba(132, 205, 248, 0.12), 0 10px 26px rgba(0, 0, 0, 0.28) !important;
 }
+
+
+.toolInlineCheck{ display:inline-flex; align-items:center; gap:8px; }
+.toolInlineCheck input[type="checkbox"]{ margin:0; }
