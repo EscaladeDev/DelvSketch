@@ -89,6 +89,13 @@
       }
     },
     {
+      "id": "campfire",
+      "name": "Campfire",
+      "src": "campfire.svg",
+      "gridW": 1.1,
+      "gridH": 1.1
+    },
+    {
       "id": "stairs",
       "name": "Stairs",
       "src": "stairs.svg",

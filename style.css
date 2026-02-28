@@ -172,9 +172,11 @@ input[type="checkbox"] { transform: scale(1.1); }
 }
 .toolInlineRange strong { font-weight: 700; color: rgba(20,25,30,0.92); }
 .toolInlineRange input[type="range"] { width: 180px; }
+.toolInlineRange select { width: 180px; min-height: 34px; border-radius: 10px; }
 @media (max-width: 720px) {
   .toolInlineRange { grid-template-columns: 1fr; }
   .toolInlineRange input[type="range"] { width: min(280px, 100%); }
+  .toolInlineRange select { width: min(280px, 100%); }
 }
 
 
@@ -2414,8 +2416,29 @@ body[data-theme="dark"] .pdfExportSummary{
   line-height: 1;
 }
 #btnThemeMode{ grid-column: 1 / -1; }
-#polyToolOptions{ margin-top: 6px !important; }
-#polyToolOptions .toolInlineRange{ display:block; }
+#polyToolOptions{ margin-top: 6px !important; width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+#polyToolOptions{
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+#polyToolOptions .toolInlineRange{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+#polyToolOptions .toolInlineRange > span:first-child{
+  display: block;
+  min-width: 0;
+}
+#polyToolOptions .toolInlineRange input[type="range"],
+#polyToolOptions .toolInlineRange select{
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 
 /* disabled undo/redo state */
 #btnUndo:disabled, #btnRedo:disabled{

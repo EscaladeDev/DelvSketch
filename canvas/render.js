@@ -1,6 +1,7 @@
 import { drawGrid } from "./grid.js"
 
 import { contoursFromAlpha } from "../utils/marching_squares.js"
+import { getPathRenderGeometry, normalizePathShapeSettings } from "../utils/path-styles.js"
 
 function ensureCanvas(holder, key, w, h) {
   if (!holder[key]) holder[key] = document.createElement("canvas")
@@ -112,7 +113,15 @@ function worldBoundsFromDungeon(dungeon) {
     if (p.y > maxy) maxy = p.y
   }
   for (const s of dungeon.spaces) for (const p of (s.polygon || [])) eat(p)
-  for (const pth of dungeon.paths) for (const p of (pth.points || [])) eat(p)
+  for (const pth of dungeon.paths) {
+    const width = Math.max(2, Number(pth?.width || dungeon.style?.corridorWidth || 48))
+    const geometry = getPathRenderGeometry(pth?.points || [], normalizePathShapeSettings(pth || {}, dungeon.style || {}), { width, seed: pth?.id || pth?.seq || 0 })
+    const pad = width * 0.5
+    for (const p of (geometry.points || [])) {
+      eat({ x: p.x - pad, y: p.y - pad })
+      eat({ x: p.x + pad, y: p.y + pad })
+    }
+  }
   for (const sh of dungeon.shapes) for (const p of (sh._poly || [])) eat(p)
   for (const wp of ((dungeon.water && dungeon.water.paths) || [])) for (const p of (wp.points || [])) eat(p)
   if (!isFinite(minx)) return null
@@ -153,7 +162,10 @@ function drawWorldMask(maskCtx, dungeon, bounds, ppu) {
     const pts = path && path.points
     if (!pts || pts.length < 2) continue
     const seq = Number.isFinite(Number(path.seq)) ? Number(path.seq) : (fallbackSeq++)
-    ops.push({ seq, mode: (path.mode || "add"), kind: "strokePath", width: Math.max(2, Number(path.width || dungeon.style?.corridorWidth || 48)), points: pts })
+    const width = Math.max(2, Number(path.width || dungeon.style?.corridorWidth || 48))
+    const geometry = getPathRenderGeometry(pts, normalizePathShapeSettings(path, dungeon.style || {}), { width, seed: path.id || seq })
+    if (!geometry?.points || geometry.points.length < 2) continue
+    ops.push({ seq, mode: (path.mode || "add"), kind: geometry.kind === "polygon" ? "fillPoly" : "strokePath", width, points: geometry.points, poly: geometry.points })
   }
 
   ops.sort((a,b) => a.seq - b.seq)

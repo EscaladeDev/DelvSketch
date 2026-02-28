@@ -3,6 +3,7 @@ import { Camera } from "./canvas/camera.js"
 import { snapHard, snapSoft } from "./utils/snap.js"
 import { dist, norm, rotate } from "./utils/math.js"
 import { compileWorldCache, drawCompiledBase, drawCompiledExteriorGrid } from "./canvas/render.js"
+import { PATH_SHAPE_MODES, getDefaultPathShapeSettings, normalizePathShapeSettings, getPathRenderGeometry } from "./utils/path-styles.js"
 
 const canvas = document.querySelector("canvas")
 const ctx = canvas.getContext("2d", { alpha: true })
@@ -80,12 +81,17 @@ function syncToolUI(){
     b.classList.toggle("primary", active)
   })
   const showCorridorWidth = ["path","free","arc"].includes(tool)
+  const showPathShapeControls = ["path","free","arc"].includes(tool)
   const showPolySides = tool === "poly"
   const showLineOptions = tool === "line"
-  const showToolOptions = showCorridorWidth || showPolySides || showLineOptions
+  const showToolOptions = showCorridorWidth || showPolySides || showLineOptions || showPathShapeControls
   const corridorToolRow = document.getElementById("corridorToolRow")
   const polyToolRow = document.getElementById("polyToolRow")
   const lineToolRow = document.getElementById("lineToolRow")
+  const pathShapeRow = document.getElementById("pathShapeRow")
+  const pathSmoothnessRow = document.getElementById("pathSmoothnessRow")
+  const pathAmplitudeRow = document.getElementById("pathAmplitudeRow")
+  const pathFrequencyRow = document.getElementById("pathFrequencyRow")
   if (polyToolOptions) {
     polyToolOptions.classList.toggle("hidden", !showToolOptions)
     polyToolOptions.hidden = !showToolOptions
@@ -101,6 +107,26 @@ function syncToolUI(){
   if (lineToolRow) {
     lineToolRow.classList.toggle("hidden", !showLineOptions)
     lineToolRow.hidden = !showLineOptions
+  }
+  if (pathShapeRow) {
+    pathShapeRow.classList.toggle("hidden", !showPathShapeControls)
+    pathShapeRow.hidden = !showPathShapeControls
+  }
+  const currentShapeMode = PATH_SHAPE_MODES.includes(dungeon.style?.pathShapeMode) ? dungeon.style.pathShapeMode : "smooth"
+  if (pathSmoothnessRow) {
+    const show = showPathShapeControls && currentShapeMode === "smooth"
+    pathSmoothnessRow.classList.toggle("hidden", !show)
+    pathSmoothnessRow.hidden = !show
+  }
+  if (pathAmplitudeRow) {
+    const show = showPathShapeControls && currentShapeMode === "jagged"
+    pathAmplitudeRow.classList.toggle("hidden", !show)
+    pathAmplitudeRow.hidden = !show
+  }
+  if (pathFrequencyRow) {
+    const show = showPathShapeControls && currentShapeMode === "jagged"
+    pathFrequencyRow.classList.toggle("hidden", !show)
+    pathFrequencyRow.hidden = !show
   }
 }
 function setTool(t){
@@ -296,6 +322,13 @@ function applyToolbarUiOverhaul(){
 const gridSize = document.getElementById("gridSize")
 const corridorWidth = document.getElementById("corridorWidth")
 const corridorWidthOut = document.getElementById("corridorWidthOut")
+const pathShapeMode = document.getElementById("pathShapeMode")
+const pathSmoothness = document.getElementById("pathSmoothness")
+const pathSmoothnessOut = document.getElementById("pathSmoothnessOut")
+const pathAmplitude = document.getElementById("pathAmplitude")
+const pathAmplitudeOut = document.getElementById("pathAmplitudeOut")
+const pathFrequency = document.getElementById("pathFrequency")
+const pathFrequencyOut = document.getElementById("pathFrequencyOut")
 const wallWidth = document.getElementById("wallWidth")
 const wallColor = document.getElementById("wallColor")
 const floorColor = document.getElementById("floorColor")
@@ -528,8 +561,20 @@ function syncUI(){
   if (typeof dungeon.style.shadow.allPropsEnabled !== "boolean") dungeon.style.shadow.allPropsEnabled = true
   const __shadowAllPropsToggle = ensureGlobalPropShadowToggleUi()
   gridSize.value = dungeon.gridSize
+  const pathDefaults = getDefaultPathShapeSettings(dungeon.style || {})
+  dungeon.style.pathShapeMode = pathDefaults.shapeMode
+  dungeon.style.pathSmoothness = pathDefaults.smoothness
+  dungeon.style.pathJaggedAmplitude = pathDefaults.amplitude
+  dungeon.style.pathJaggedFrequency = pathDefaults.frequency
   corridorWidth.value = dungeon.style.corridorWidth
   if (corridorWidthOut) corridorWidthOut.textContent = String(dungeon.style.corridorWidth)
+  if (pathShapeMode) pathShapeMode.value = pathDefaults.shapeMode
+  if (pathSmoothness) pathSmoothness.value = String(pathDefaults.smoothness)
+  if (pathSmoothnessOut) pathSmoothnessOut.textContent = pathDefaults.smoothness.toFixed(2)
+  if (pathAmplitude) pathAmplitude.value = String(pathDefaults.amplitude)
+  if (pathAmplitudeOut) pathAmplitudeOut.textContent = pathDefaults.amplitude.toFixed(2)
+  if (pathFrequency) pathFrequency.value = String(pathDefaults.frequency)
+  if (pathFrequencyOut) pathFrequencyOut.textContent = pathDefaults.frequency.toFixed(2)
   wallWidth.value = dungeon.style.wallWidth
   if (wallColor) wallColor.value = dungeon.style.wallColor || "#1f2933"
   if (floorColor) floorColor.value = dungeon.style.floorColor || dungeon.style.paper || "#ffffff"
@@ -604,6 +649,25 @@ showCoverPage()
 
 gridSize.addEventListener("input", () => dungeon.gridSize = Number(gridSize.value))
 corridorWidth.addEventListener("input", () => { dungeon.style.corridorWidth = Number(corridorWidth.value); if (corridorWidthOut) corridorWidthOut.textContent = String(dungeon.style.corridorWidth) })
+if (pathShapeMode) pathShapeMode.addEventListener("change", () => {
+  dungeon.style.pathShapeMode = PATH_SHAPE_MODES.includes(pathShapeMode.value) ? pathShapeMode.value : "smooth"
+  if (tool === "free" || tool === "path" || tool === "arc") {
+    resetTransientDrafts()
+  }
+  syncToolUI()
+})
+if (pathSmoothness) pathSmoothness.addEventListener("input", () => {
+  dungeon.style.pathSmoothness = Math.max(0, Math.min(1, Number(pathSmoothness.value) || 0))
+  if (pathSmoothnessOut) pathSmoothnessOut.textContent = Number(dungeon.style.pathSmoothness).toFixed(2)
+})
+if (pathAmplitude) pathAmplitude.addEventListener("input", () => {
+  dungeon.style.pathJaggedAmplitude = Math.max(0, Math.min(3.5, Number(pathAmplitude.value) || 0))
+  if (pathAmplitudeOut) pathAmplitudeOut.textContent = Number(dungeon.style.pathJaggedAmplitude).toFixed(2)
+})
+if (pathFrequency) pathFrequency.addEventListener("input", () => {
+  dungeon.style.pathJaggedFrequency = Math.max(0.35, Math.min(2.8, Number(pathFrequency.value) || 1))
+  if (pathFrequencyOut) pathFrequencyOut.textContent = Number(dungeon.style.pathJaggedFrequency).toFixed(2)
+})
 wallWidth.addEventListener("input", () => dungeon.style.wallWidth = Number(wallWidth.value))
 if (wallColor) wallColor.addEventListener("input", () => dungeon.style.wallColor = wallColor.value)
 if (floorColor) {
@@ -1411,17 +1475,26 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
   const cw = w + pad * 2, ch = h + pad * 2
 
   // Alpha mask for the prop image.
+  const baseAlphaC = document.createElement('canvas'); baseAlphaC.width = cw; baseAlphaC.height = ch
+  const bactx = baseAlphaC.getContext('2d')
+  bactx.clearRect(0,0,cw,ch)
+  bactx.imageSmoothingEnabled = false
+  bactx.save()
+  bactx.translate(pad + w/2, pad + h/2)
+  bactx.scale(flipX ? -1 : 1, flipY ? -1 : 1)
+  bactx.drawImage(img, -w/2, -h/2, w, h)
+  bactx.restore()
+
+  // Build a slightly expanded source mask for shadow casting while keeping a tighter
+  // body mask for the cutout. Using the same expanded mask for both can leave a pale
+  // seam between the prop and the shadow on anti-aliased assets.
   const alphaC = document.createElement('canvas'); alphaC.width = cw; alphaC.height = ch
   const actx = alphaC.getContext('2d')
-  actx.clearRect(0,0,cw,ch)
   actx.imageSmoothingEnabled = false
-  actx.save()
-  actx.translate(pad + w/2, pad + h/2)
-  actx.scale(flipX ? -1 : 1, flipY ? -1 : 1)
-  actx.drawImage(img, -w/2, -h/2, w, h)
-  actx.restore()
+  actx.drawImage(baseAlphaC, 0, 0)
 
-  // Slightly dilate the mask so stroke-based SVG icons (doors/chests/etc.) don't produce near-invisible shadows.
+  // Slightly dilate the cast source so stroke-based SVG icons (doors/chests/etc.)
+  // still produce a visible shadow.
   if (feather > 0){
     const dilate = document.createElement('canvas'); dilate.width = cw; dilate.height = ch
     const dctx = dilate.getContext('2d')
@@ -1429,7 +1502,7 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
     for (let ox = -feather; ox <= feather; ox++){
       for (let oy = -feather; oy <= feather; oy++){
         if ((ox*ox + oy*oy) > feather*feather) continue
-        dctx.drawImage(alphaC, ox, oy)
+        dctx.drawImage(baseAlphaC, ox, oy)
       }
     }
     actx.clearRect(0,0,cw,ch)
@@ -1450,7 +1523,7 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
     sctx.drawImage(alphaC, ox, oy)
   }
   sctx.globalCompositeOperation = 'destination-out'
-  sctx.drawImage(alphaC, 0, 0)
+  sctx.drawImage(baseAlphaC, 0, 0)
   sctx.globalCompositeOperation = 'source-over'
 
   // Normalize the mask to binary alpha so overlapping sweep samples don't become darker.
@@ -1462,6 +1535,40 @@ function getPropShadowCanvasLikeWalls(propInst, img, drawW, drawH, zoomOverride 
     }
     sctx.putImageData(maskImg, 0, 0)
   } catch {}
+
+  // Bridge the tiny anti-aliased halo/gap that can appear between a prop sprite
+  // and the start of its shadow. Keep the overlap modest, then carve back the
+  // light-facing side so the shadow does not wrap around the prop silhouette.
+  const bridgeX = dx === 0 ? 0 : -Math.sign(dx)
+  const bridgeY = dy === 0 ? 0 : -Math.sign(dy)
+  if (bridgeX !== 0 || bridgeY !== 0){
+    const bridgeSteps = 1
+    const bridgeC = document.createElement('canvas'); bridgeC.width = cw; bridgeC.height = ch
+    const bctx = bridgeC.getContext('2d')
+    bctx.imageSmoothingEnabled = false
+    for (let i = 0; i <= bridgeSteps; i++){
+      bctx.drawImage(sweepC, bridgeX * i, bridgeY * i)
+    }
+    sctx.clearRect(0, 0, cw, ch)
+    sctx.drawImage(bridgeC, 0, 0)
+
+    // Remove the faint halo that can survive on the light-facing / shoulder sides
+    // of the prop after bridging. We subtract a slightly expanded copy of the prop
+    // body, biased toward the light, so the shadow starts flush only on the cast side.
+    const blockerPad = Math.max(1, Math.min(3, feather + 1))
+    const blockerC = document.createElement('canvas'); blockerC.width = cw; blockerC.height = ch
+    const blctx = blockerC.getContext('2d')
+    blctx.imageSmoothingEnabled = false
+    for (let ox = -blockerPad; ox <= blockerPad; ox++){
+      for (let oy = -blockerPad; oy <= blockerPad; oy++){
+        if ((ox*ox + oy*oy) > blockerPad*blockerPad) continue
+        blctx.drawImage(baseAlphaC, ox, oy)
+      }
+    }
+    sctx.globalCompositeOperation = 'destination-out'
+    sctx.drawImage(blockerC, bridgeX * blockerPad, bridgeY * blockerPad)
+    sctx.globalCompositeOperation = 'source-over'
+  }
 
   const outC = document.createElement('canvas'); outC.width = cw; outC.height = ch
   const octx = outC.getContext('2d')
@@ -1542,8 +1649,10 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
   const propOccC = propShadowsGloballyEnabled ? getPropLayerTemp('propOcc', targetW, targetH) : null
   const wallOccC = propShadowsGloballyEnabled ? getPropLayerTemp('wallOcc', targetW, targetH) : null
   const shadowTintC = propShadowsGloballyEnabled ? getPropLayerTemp('shadowTint', targetW, targetH) : null
+  const propOccExpandedC = propShadowsGloballyEnabled ? getPropLayerTemp('propOccExpanded', targetW, targetH) : null
   const smctx = shadowMaskC ? shadowMaskC.getContext('2d', { willReadFrequently: true }) : null
   const poctx = propOccC ? propOccC.getContext('2d') : null
+  const poectx = propOccExpandedC ? propOccExpandedC.getContext('2d') : null
   const woctx = wallOccC ? wallOccC.getContext('2d', { willReadFrequently: true }) : null
   const stctx = shadowTintC ? shadowTintC.getContext('2d') : null
 
@@ -1556,6 +1665,11 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
     poctx.clearRect(0,0,targetW,targetH)
     poctx.globalCompositeOperation = 'source-over'
     poctx.imageSmoothingEnabled = false
+  }
+  if (poectx) {
+    poectx.clearRect(0,0,targetW,targetH)
+    poectx.globalCompositeOperation = 'source-over'
+    poectx.imageSmoothingEnabled = false
   }
   if (woctx) {
     woctx.clearRect(0,0,targetW,targetH)
@@ -1612,9 +1726,51 @@ function drawPlacedPropsTo(targetCtx, targetCamera, targetW, targetH, cacheForWa
       smctx.putImageData(maskImg, 0, 0)
     } catch {}
 
-    // Never draw prop shadows over prop bodies.
+    // Never draw prop shadows under the semi-transparent fringe of prop bodies.
+    // Use two cutouts:
+    // 1) a tiny isotropic expansion to hide anti-aliased seams directly under the sprite edge
+    // 2) a light-side-biased carve so the shadow does not wrap around the silhouette on the lit side
+    const occOverlapPx = Math.max(1, Math.min(2, Math.round(targetCamera.zoom * 0.03)))
+    const lightDir = (() => {
+      const g = dungeon.style?.shadow?.dir || { x: 0.707, y: 0.707 }
+      const lx = -Number(g.x || 0)
+      const ly = -Number(g.y || 0)
+      const mag = Math.hypot(lx, ly) || 1
+      return { x: lx / mag, y: ly / mag }
+    })()
+    const occMaskForCutout = (() => {
+      if (!poectx || !propOccExpandedC) return propOccC
+      poectx.clearRect(0,0,targetW,targetH)
+
+      // Small symmetric overlap so the shadow tucks just under soft sprite edges.
+      if (occOverlapPx > 0){
+        for (let ox = -occOverlapPx; ox <= occOverlapPx; ox++){
+          for (let oy = -occOverlapPx; oy <= occOverlapPx; oy++){
+            if ((ox*ox + oy*oy) > occOverlapPx*occOverlapPx) continue
+            poectx.drawImage(propOccC, ox, oy)
+          }
+        }
+      } else {
+        poectx.drawImage(propOccC, 0, 0)
+      }
+
+      // Stronger carve on the light-facing side only, which removes pale/white streaks
+      // without opening a gap on the cast side where the shadow should start flush.
+      const lightCarvePx = Math.max(1, Math.min(4, Math.round(targetCamera.zoom * 0.06)))
+      const stepX = lightDir.x === 0 ? 0 : Math.sign(lightDir.x)
+      const stepY = lightDir.y === 0 ? 0 : Math.sign(lightDir.y)
+      for (let i = 1; i <= lightCarvePx; i++){
+        const ox = Math.round(lightDir.x * i)
+        const oy = Math.round(lightDir.y * i)
+        poectx.drawImage(propOccC, ox, oy)
+        // Fill in coarse pixel stairs for diagonal light directions.
+        if (stepX !== 0) poectx.drawImage(propOccC, ox + stepX, oy)
+        if (stepY !== 0) poectx.drawImage(propOccC, ox, oy + stepY)
+      }
+      return propOccExpandedC
+    })()
     smctx.globalCompositeOperation = 'destination-out'
-    smctx.drawImage(propOccC, 0, 0)
+    smctx.drawImage(occMaskForCutout, 0, 0)
     smctx.globalCompositeOperation = 'source-over'
 
     // Clip prop shadows to dungeon interior so they cannot leak outside walls.
@@ -2145,6 +2301,11 @@ function setDungeonFromObject(d){
     if (!Array.isArray(p.points)) p.points = []
     if (!Number.isFinite(Number(p.seq))) p.seq = nextEditSeq()
     if (!Number.isFinite(Number(p.width))) p.width = Number(dungeon.style?.corridorWidth || 48)
+    const normalizedPathShape = normalizePathShapeSettings(p, dungeon.style || {})
+    p.shapeMode = normalizedPathShape.shapeMode
+    p.smoothness = normalizedPathShape.smoothness
+    p.amplitude = normalizedPathShape.amplitude
+    p.frequency = normalizedPathShape.frequency
   }
   if (!dungeon.water || typeof dungeon.water !== "object") dungeon.water = { paths: [] }
   if (!Array.isArray(dungeon.water.paths)) dungeon.water.paths = []
@@ -3416,7 +3577,7 @@ normalizeEditSequences()
 function finishTool(){
   if (tool === "path" || tool === "poly") {
     if (draft && draft.type === "path" && draft.points.length>=2) {
-      commitDraftPath(draft.points)
+      commitDraftPath(draft.points, currentPathShapeSettings())
       draft = null
     }
   }
@@ -3487,6 +3648,7 @@ function simplifyFree(points, minDist=7){
 function subGrid(){ return dungeon.gridSize / (dungeon.subSnapDiv || 4) }
 function currentDrawMode(){ return underMode ? "subtract" : "add" }
 function currentCorridorWidth(){ return Math.max(12, Number(dungeon.style?.corridorWidth || 48) || 48) }
+function currentPathShapeSettings(){ return getDefaultPathShapeSettings(dungeon.style || {}) }
 function currentLineBaseWorldWidth(){
   const fallbackRipplePx = Math.max(1, Number(dungeon.style?.water?.ripplePx || 7) || 7)
   const fallbackPpu = Math.max(1, Number(compiledCache?.ppu || 4) || 4)
@@ -3562,7 +3724,19 @@ function drawLinesTo(targetCtx, cam){
 function commitDraftPath(points, extra = {}){
   if (!Array.isArray(points) || points.length < 2) return false
   pushUndo()
-  dungeon.paths.push({ id: crypto.randomUUID(), seq: nextEditSeq(), mode: currentDrawMode(), width: currentCorridorWidth(), points, ...extra })
+  const shapeSettings = normalizePathShapeSettings(extra, dungeon.style || {})
+  dungeon.paths.push({
+    id: crypto.randomUUID(),
+    seq: nextEditSeq(),
+    mode: currentDrawMode(),
+    width: currentCorridorWidth(),
+    points,
+    shapeMode: shapeSettings.shapeMode,
+    smoothness: shapeSettings.smoothness,
+    amplitude: shapeSettings.amplitude,
+    frequency: shapeSettings.frequency,
+    ...extra
+  })
   bumpInteriorVersion()
   return true
 }
@@ -3909,6 +4083,10 @@ function handleGlobalDragOver(e){
 }
 async function handleGlobalDrop(e){
   if (!shouldInterceptAnyDropEvent(e)) return
+  // Let the canvas-specific drop handler own drops that land on the canvas.
+  // The document capture-phase drop listener fires before the canvas listener,
+  // which can otherwise place the same prop twice for a single drag/drop.
+  if (typeof e.clientX === 'number' && typeof e.clientY === 'number' && pointInsideCanvasClient(e.clientX, e.clientY)) return
   e.preventDefault()
   if (await maybeHandleExternalImageDrop(e)) return
   maybeHandlePropDrop(e)
@@ -4447,7 +4625,7 @@ canvas.addEventListener("pointerup", (e)=>{
   } else if (tool==="free"){
     if (freeDraw && freeDraw.length>=2){
       const pts = simplifyFree(freeDraw, 6)
-      commitDraftPath(pts)
+      commitDraftPath(pts, currentPathShapeSettings())
     }
     freeDraw=null
   } else if (tool==="line") {
@@ -4470,7 +4648,7 @@ canvas.addEventListener("pointerup", (e)=>{
   } else if (tool==="path"){
     if (isDoubleTap && draft && draft.type==="path"){
       if (draft.points.length>=2){
-        commitDraftPath(draft.points)
+        commitDraftPath(draft.points, currentPathShapeSettings())
       }
       draft=null
     } else {
@@ -4599,16 +4777,31 @@ function drawDraftOverlay(){
     ctx.stroke()
 
     if (draft.points.length>=2){
+      const previewGeom = getPathRenderGeometry(draft.points, currentPathShapeSettings(), { width: currentCorridorWidth(), seed: "draft-path", preview: true, pointBudget: 120 })
       ctx.setLineDash([])
-      ctx.strokeStyle = fill
-      ctx.lineWidth = currentCorridorWidth() * camera.zoom
-      ctx.lineCap = "round"; ctx.lineJoin = "round"
-      ctx.beginPath()
-      draft.points.forEach((p,i)=>{
-        const s = camera.worldToScreen(p)
-        i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
-      })
-      ctx.stroke()
+      if (previewGeom.kind === "polygon") {
+        ctx.fillStyle = fill
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        previewGeom.points.forEach((p,i)=>{
+          const s = camera.worldToScreen(p)
+          i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+        })
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+      } else {
+        ctx.strokeStyle = fill
+        ctx.lineWidth = currentCorridorWidth() * camera.zoom
+        ctx.lineCap = "round"; ctx.lineJoin = "round"
+        ctx.beginPath()
+        previewGeom.points.forEach((p,i)=>{
+          const s = camera.worldToScreen(p)
+          i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+        })
+        ctx.stroke()
+      }
     }
   }
 
@@ -4645,26 +4838,42 @@ function drawDraftOverlay(){
 
   // Free draw preview: translucent corridor stroke
   if (tool!=="water" && freeDraw && freeDraw.length>1){
+    const previewGeom = getPathRenderGeometry(freeDraw, currentPathShapeSettings(), { width: currentCorridorWidth(), seed: "draft-free", preview: true, pointBudget: 120 })
+    const previewLine = previewGeom.centerline || previewGeom.points
     ctx.setLineDash([6,6])
     ctx.strokeStyle = stroke
     ctx.lineWidth = 1
     ctx.beginPath()
-    freeDraw.forEach((p,i)=>{
+    previewLine.forEach((p,i)=>{
       const s = camera.worldToScreen(p)
       i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
     })
     ctx.stroke()
 
     ctx.setLineDash([])
-    ctx.strokeStyle = fill
-    ctx.lineWidth = currentCorridorWidth() * camera.zoom
-    ctx.lineCap = "round"; ctx.lineJoin = "round"
-    ctx.beginPath()
-    freeDraw.forEach((p,i)=>{
-      const s = camera.worldToScreen(p)
-      i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
-    })
-    ctx.stroke()
+    if (previewGeom.kind === "polygon") {
+      ctx.fillStyle = fill
+      ctx.strokeStyle = stroke
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      previewGeom.points.forEach((p,i)=>{
+        const s = camera.worldToScreen(p)
+        i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+      })
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    } else {
+      ctx.strokeStyle = fill
+      ctx.lineWidth = currentCorridorWidth() * camera.zoom
+      ctx.lineCap = "round"; ctx.lineJoin = "round"
+      ctx.beginPath()
+      previewGeom.points.forEach((p,i)=>{
+        const s = camera.worldToScreen(p)
+        i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+      })
+      ctx.stroke()
+    }
   }
 
 
@@ -4731,15 +4940,33 @@ function drawDraftOverlay(){
       ctx.fill()
       if (preview && (preview.isCircle || Math.abs(preview.sweep) > 1e-3)){
         const pts = sampleArcPoints(preview.center, preview.radius, preview.startAngle, preview.endAngle, { closeLoop: preview.isCircle })
+        const arcShapeSettings = currentPathShapeSettings()
+        const previewGeom = getPathRenderGeometry(pts, arcShapeSettings, {
+          width: currentCorridorWidth(),
+          preview: true,
+          seed: `arc-preview:${preview.center.x.toFixed(2)},${preview.center.y.toFixed(2)}:${preview.radius.toFixed(2)}:${preview.startAngle.toFixed(3)}:${preview.endAngle.toFixed(3)}:${preview.isCircle ? 1 : 0}`,
+          pointBudget: 120
+        })
         ctx.strokeStyle = fill
         ctx.lineWidth = currentCorridorWidth() * camera.zoom
         ctx.lineCap = "round"; ctx.lineJoin = "round"
-        ctx.beginPath()
-        pts.forEach((p,i)=>{
-          const s = camera.worldToScreen(p)
-          i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
-        })
-        ctx.stroke()
+        if (previewGeom.kind === "polygon" && previewGeom.points.length >= 3) {
+          ctx.beginPath()
+          previewGeom.points.forEach((p,i)=>{
+            const s = camera.worldToScreen(p)
+            i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+          })
+          ctx.closePath()
+          ctx.fillStyle = fill
+          ctx.fill()
+        } else {
+          ctx.beginPath()
+          previewGeom.points.forEach((p,i)=>{
+            const s = camera.worldToScreen(p)
+            i===0 ? ctx.moveTo(s.x,s.y) : ctx.lineTo(s.x,s.y)
+          })
+          ctx.stroke()
+        }
 
         ctx.strokeStyle = stroke
         ctx.lineWidth = 1.5

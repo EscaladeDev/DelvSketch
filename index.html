@@ -38,6 +38,25 @@
               <span>Corridor width <strong id="corridorWidthOut">48</strong></span>
               <input id="corridorWidth" type="range" min="12" max="96" step="4" value="48">
             </label>
+            <label id="pathShapeRow" class="toolInlineRange hidden" hidden>
+              <span>Path shape</span>
+              <select id="pathShapeMode">
+                <option value="smooth">Smooth</option>
+                <option value="jagged">Jagged</option>
+              </select>
+            </label>
+            <label id="pathSmoothnessRow" class="toolInlineRange hidden" hidden>
+              <span>Smoothness <strong id="pathSmoothnessOut">0.60</strong></span>
+              <input id="pathSmoothness" type="range" min="0" max="1" step="0.05" value="0.6">
+            </label>
+            <label id="pathAmplitudeRow" class="toolInlineRange hidden" hidden>
+              <span>Amplitude <strong id="pathAmplitudeOut">1.00</strong></span>
+              <input id="pathAmplitude" type="range" min="0" max="3.5" step="0.05" value="1.45">
+            </label>
+            <label id="pathFrequencyRow" class="toolInlineRange hidden" hidden>
+              <span>Frequency <strong id="pathFrequencyOut">1.00</strong></span>
+              <input id="pathFrequency" type="range" min="0.35" max="2.8" step="0.05" value="1.15">
+            </label>
             <label id="polyToolRow" class="toolInlineRange hidden" hidden>
               <span>Polygon sides <strong id="polySidesOut">6</strong></span>
               <input id="polySides" type="range" min="3" max="12" step="1" value="6">
