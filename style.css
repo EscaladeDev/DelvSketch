@@ -2115,7 +2115,7 @@ input[type="range"] {
   .appTopbar .toolbarActions .toolbarRow{ grid-template-columns: repeat(2, minmax(0,1fr)); }
 }
 
-/* v33b: move Dungeon Sketch title pill to bottom center */
+/* v33b: move  title pill to bottom center */
 .appTopbar .topbarTitle{
   top: auto !important;
   bottom: calc(env(safe-area-inset-bottom) + 12px) !important;
