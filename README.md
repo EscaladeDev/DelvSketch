@@ -1,6 +1,6 @@
-# Dungeon Sketch (Alpha)
+# DelvSketch (Alpha)
 
-Dungeon Sketch is a lightweight browser-based map sketching tool for quickly blocking out dungeon layouts, rooms, corridors, and labels.
+DelvSketch is a lightweight browser-based map sketching tool for quickly blocking out dungeon layouts, rooms, corridors, and labels.
 
 It’s designed for fast iteration while planning encounters, adventures, or level ideas.
 
@@ -25,7 +25,7 @@ If you find the tool useful, there is an in-app “Tip the developer” button.
 
 ## License
 
-Dungeon Sketch is licensed under a **custom proprietary license**.
+DelvSketch is licensed under a **custom proprietary license**.
 
 - You may use the software to create maps (including for commercial projects).
 - You may **not** modify, redistribute, or commercially exploit the software itself without permission.
