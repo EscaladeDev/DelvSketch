@@ -726,9 +726,14 @@ function normalizePlacedPropObj(p){
   const baseW = Math.max(1, safeNum(p?.baseW, fallbackW))
   const baseH = Math.max(1, safeNum(p?.baseH, fallbackH))
   const scale = Math.max(0.05, safeNum(p?.scale, 1))
+  const propId = (p && p.propId != null) ? String(p.propId) : undefined
+  const assetId = (p && p.assetId != null) ? String(p.assetId) : undefined
   return {
     id: String(p?.id || ((typeof globalThis!=='undefined' && globalThis.crypto && globalThis.crypto.randomUUID) ? globalThis.crypto.randomUUID() : (Date.now()+Math.random()))),
-    propId: (p && p.propId != null) ? String(p.propId) : undefined,
+    propId,
+    assetId,
+    source: String(p?.source || (assetId ? "imported" : "bundled")),
+    mime: String(p?.mime || ""),
     name: String(p?.name || "Prop"),
     url: String(p?.url || ""),
     x: safeNum(p?.x, 0),
@@ -1295,6 +1300,9 @@ function placePropAtWorld(prop, world){
   const placed = {
     id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random()),
     propId: prop.id,
+    assetId: prop.assetId ? String(prop.assetId) : undefined,
+    source: String(prop.source || (prop.assetId ? 'imported' : 'bundled')),
+    mime: String(prop.mime || ''),
     name: prop.name,
     url: prop.url,
     x: placeWorld.x,
@@ -1759,6 +1767,111 @@ let importedPropsCatalog = []
 let propsCatalog = []
 let bundledPropsLoadQueued = false
 
+function makeCustomAssetId(seed = "asset"){
+  const base = String(seed || "asset").replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "asset"
+  const suffix = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
+  return `custom-${base}-${suffix}`
+}
+function readFileAsDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error || new Error('Failed to read file'))
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.readAsDataURL(file)
+  })
+}
+function getMimeFromDataUrl(dataUrl){
+  const m = /^data:([^;,]+)[;,]/i.exec(String(dataUrl || ''))
+  return m ? String(m[1]).toLowerCase() : ''
+}
+function isEmbeddedCustomPropLike(value){
+  return !!value && /^(data:image\/|blob:)/i.test(String(value))
+}
+function buildImportedPropFromEmbeddedAsset(asset, i = 0){
+  if (!asset || !asset.assetId || !asset.data) return null
+  return {
+    id: String(asset.assetId),
+    assetId: String(asset.assetId),
+    name: String(asset.name || `Image ${i+1}`).replace(/\.[^.]+$/, "") || `Image ${i+1}`,
+    url: String(asset.data),
+    mime: String(asset.mime || getMimeFromDataUrl(asset.data) || ''),
+    source: 'imported'
+  }
+}
+function rebuildImportedPropsFromEmbeddedAssets(list){
+  importedPropsCatalog = Array.isArray(list)
+    ? list.map((asset, i) => buildImportedPropFromEmbeddedAsset(asset, i)).filter(Boolean)
+    : []
+  rebuildPropsCatalog()
+  for (const p of importedPropsCatalog) getPropImage(p)
+  renderPropsShelf()
+}
+function collectUsedEmbeddedAssetsFromPlacedProps(list){
+  const byId = new Map()
+  for (const raw of (list || [])) {
+    const p = normalizePlacedPropObj(raw)
+    if (!p) continue
+    const assetId = String(p.assetId || '')
+    const isCustom = !!assetId || (p.source === 'imported') || isEmbeddedCustomPropLike(p.url)
+    if (!isCustom) continue
+    const data = String(p.url || '')
+    if (!isEmbeddedCustomPropLike(data)) continue
+    const id = assetId || String(p.propId || p.id || makeCustomAssetId(p.name || 'image'))
+    if (byId.has(id)) continue
+    byId.set(id, {
+      assetId: id,
+      name: String(p.name || 'Image'),
+      mime: String(p.mime || getMimeFromDataUrl(data) || ''),
+      data
+    })
+  }
+  return Array.from(byId.values())
+}
+function serializePlacedPropsForSave(list){
+  return (list || []).map(raw => {
+    const p = normalizePlacedPropObj(raw)
+    if (!p) return null
+    const out = {
+      id: p.id,
+      propId: p.propId,
+      assetId: p.assetId,
+      source: p.source,
+      mime: p.mime,
+      name: p.name,
+      x: p.x,
+      y: p.y,
+      w: p.w,
+      h: p.h,
+      baseW: p.baseW,
+      baseH: p.baseH,
+      scale: p.scale,
+      rot: p.rot,
+      flipX: p.flipX,
+      flipY: p.flipY,
+      shadowDisabled: p.shadowDisabled,
+    }
+    if (!(p.assetId || p.source === 'imported' || isEmbeddedCustomPropLike(p.url))) {
+      out.url = p.url
+    }
+    return out
+  }).filter(Boolean)
+}
+function hydratePlacedPropsWithEmbeddedAssets(list, embeddedAssets){
+  const assetMap = new Map((embeddedAssets || []).map(asset => [String(asset.assetId), asset]))
+  return (list || []).map(raw => {
+    const p = normalizePlacedPropObj(raw)
+    if (!p) return null
+    const asset = p.assetId ? assetMap.get(String(p.assetId)) : null
+    if (asset && asset.data) {
+      p.url = String(asset.data)
+      p.mime = String(asset.mime || p.mime || getMimeFromDataUrl(asset.data) || '')
+      p.source = 'imported'
+      if (!p.propId) p.propId = String(asset.assetId)
+    }
+    return p
+  }).filter(p => p && p.url)
+}
+
 function rebuildPropsCatalog(){
   propsCatalog = [...builtInPropsCatalog, ...importedPropsCatalog]
 }
@@ -1942,24 +2055,44 @@ function renderPropsShelf(){
     propsShelf.appendChild(tile)
   }
 }
-async function loadPropsFromFolderFiles(fileList){
-  const files = Array.from(fileList || [])
-    .filter(f => /\.(png|svg|webp|jpg|jpeg)$/i.test(f.name))
-    .sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric:true, sensitivity:"base" }))
-    .slice(0, 500)
-  clearPropObjectURLs(importedPropsCatalog)
-  importedPropsCatalog = files.map((f, i) => ({
-    id: (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + i),
-    name: f.name.replace(/\.[^.]+$/, ""),
-    file: f,
-    url: URL.createObjectURL(f),
+function fileLooksLikeSupportedImage(file){
+  if (!file) return false
+  const nameOk = /\.(png|svg|webp|jpg|jpeg)$/i.test(String(file.name || ''))
+  const type = String(file.type || '').toLowerCase()
+  const typeOk = type.startsWith('image/') && /(png|svg\+xml|webp|jpeg|jpg)/.test(type)
+  return nameOk || typeOk
+}
+async function makeImportedPropFromFile(f, i=0){
+  const assetId = makeCustomAssetId(f?.name || `image-${i+1}`)
+  const dataUrl = await readFileAsDataURL(f)
+  return {
+    id: assetId,
+    assetId,
+    name: String(f?.name || `Image ${i+1}`).replace(/\.[^.]+$/, "") || `Image ${i+1}`,
+    url: dataUrl,
+    mime: String(f?.type || getMimeFromDataUrl(dataUrl) || ''),
     source: "imported"
-  }))
+  }
+}
+async function appendImportedPropsFromFiles(fileList){
+  const files = Array.from(fileList || [])
+    .filter(fileLooksLikeSupportedImage)
+    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric:true, sensitivity:"base" }))
+    .slice(0, 500)
+  if (!files.length) return []
+  const fresh = (await Promise.all(files.map((f, i) => makeImportedPropFromFile(f, i)))).filter(Boolean)
+  importedPropsCatalog = [...importedPropsCatalog, ...fresh]
   rebuildPropsCatalog()
-  for (const p of importedPropsCatalog) getPropImage(p)
+  for (const p of fresh) getPropImage(p)
   armedPropId = null
   renderPropsShelf()
   setPanelTab("assets")
+  return fresh
+}
+async function loadPropsFromFolderFiles(fileList){
+  clearPropObjectURLs(importedPropsCatalog)
+  importedPropsCatalog = []
+  await appendImportedPropsFromFiles(fileList)
 }
 
 function setDungeonFromObject(d){
@@ -2075,8 +2208,10 @@ function applyLoadedMapObject(obj){
 
   // Supports both wrapped format {dungeon, camera...} and plain dungeon object.
   const d = (obj.dungeon && typeof obj.dungeon === "object") ? obj.dungeon : obj
+  const embeddedAssets = Array.isArray(obj.embeddedAssets) ? obj.embeddedAssets : []
   setDungeonFromObject(d)
-  placedProps = Array.isArray(d.placedProps) ? d.placedProps.map(normalizePlacedPropObj).filter(p => p && p.url) : []
+  rebuildImportedPropsFromEmbeddedAssets(embeddedAssets)
+  placedProps = hydratePlacedPropsWithEmbeddedAssets(Array.isArray(d.placedProps) ? d.placedProps : [], embeddedAssets)
   placedTexts = Array.isArray(d.placedTexts) ? d.placedTexts.map(normalizeTextObj) : []
 
   
@@ -2111,7 +2246,7 @@ function getCompactBoundaryRegions(){
   }
 }
 
-function getSaveMapObject(){
+async function getSaveMapObject(){
   const compactRegions = getCompactBoundaryRegions()
   const dungeonData = {
     gridSize: dungeon.gridSize,
@@ -2136,18 +2271,21 @@ function getSaveMapObject(){
     }
   }
 
+  const serializedPlacedProps = serializePlacedPropsForSave(placedProps || [])
+  const embeddedAssets = collectUsedEmbeddedAssetsFromPlacedProps(placedProps || [])
   return {
     app: "DelvSketch",
     format: "dungeon-sketch-map",
-    version: 5,
+    version: 6,
     savedAt: new Date().toISOString(),
     camera: { x: camera.x, y: camera.y, zoom: camera.zoom },
-    dungeon: Object.assign(dungeonData, { placedProps: cloneJson(placedProps || []), placedTexts: cloneJson(placedTexts || []) })
+    embeddedAssets,
+    dungeon: Object.assign(dungeonData, { placedProps: serializedPlacedProps, placedTexts: cloneJson(placedTexts || []) })
   }
 }
 
-function saveMapToFile(){
-  const data = JSON.stringify(getSaveMapObject(), null, 2)
+async function saveMapToFile(){
+  const data = JSON.stringify(await getSaveMapObject(), null, 2)
   const blob = new Blob([data], { type: "application/json" })
   const a = document.createElement("a")
   const stamp = new Date().toISOString().replace(/[:.]/g, "-")
@@ -2205,7 +2343,7 @@ function redo(){ if(!redoStack.length) return; undoStack.push(snapshot()); resto
 
 btnUndo.addEventListener("click", undo)
 btnRedo.addEventListener("click", redo)
-if (btnSaveMap) btnSaveMap.addEventListener("click", saveMapToFile)
+if (btnSaveMap) btnSaveMap.addEventListener("click", () => { saveMapToFile().catch(err => alert(`Could not save map: ${err.message || err}`)) })
 if (btnLoadMap) btnLoadMap.addEventListener("click", () => fileLoadMap && fileLoadMap.click())
 if (btnBugReport) btnBugReport.addEventListener("click", openBugReport)
 if (btnDrawerToggle) btnDrawerToggle.addEventListener("click", toggleDrawer)
@@ -3560,6 +3698,72 @@ function maybeHandlePropDrop(e){
   return false
 }
 
+function getImageFilesFromDataTransfer(dt){
+  if (!dt) return []
+  const out = []
+  try {
+    if (dt.items && dt.items.length){
+      for (const item of Array.from(dt.items)){
+        if (!item) continue
+        const kind = String(item.kind || '').toLowerCase()
+        const type = String(item.type || '').toLowerCase()
+        if (kind !== 'file') continue
+        if (type && !type.startsWith('image/')) continue
+        const file = item.getAsFile ? item.getAsFile() : null
+        if (file && fileLooksLikeSupportedImage(file)) out.push(file)
+      }
+    }
+  } catch {}
+  if (!out.length) {
+    try {
+      for (const file of Array.from(dt.files || [])){
+        if (fileLooksLikeSupportedImage(file)) out.push(file)
+      }
+    } catch {}
+  }
+  const seen = new Set()
+  return out.filter(file => {
+    const key = [file.name, file.size, file.lastModified, file.type].join('::')
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
+function eventHasExternalImageFiles(e){
+  const dt = e && e.dataTransfer
+  if (!dt) return false
+  if (getImageFilesFromDataTransfer(dt).length) return true
+  try {
+    const types = Array.from(dt.types || []).map(v => String(v).toLowerCase())
+    return types.includes('files') || types.includes('application/x-moz-file')
+  } catch { return false }
+}
+async function maybeHandleExternalImageDrop(e){
+  if (!eventHasExternalImageFiles(e)) return false
+  if (typeof e.clientX === 'number' && typeof e.clientY === 'number' && !pointInsideCanvasClient(e.clientX, e.clientY)) return false
+  e.preventDefault()
+  e.stopPropagation()
+  const files = getImageFilesFromDataTransfer(e.dataTransfer)
+  if (!files.length) return false
+  const pos = getPointerPos(e)
+  const added = await appendImportedPropsFromFiles(files)
+  if (!added.length) return false
+  const gridStep = Math.max(10, Number(dungeon.gridSize) || 32)
+  let placedAny = false
+  added.forEach((prop, i) => {
+    const screen = { x: pos.x + i * Math.min(24, gridStep * 0.4), y: pos.y + i * Math.min(24, gridStep * 0.4) }
+    if (placePropAtScreenById(prop.id, screen)) placedAny = true
+  })
+  if (placedAny) {
+    dragPropId = null
+    armedPropId = null
+    setTool("select")
+    try { canvas.focus && canvas.focus() } catch {}
+    return true
+  }
+  return false
+}
+
 function zoomAt(screenPt, factor){
   const sp = (screenPt && Number.isFinite(screenPt.x) && Number.isFinite(screenPt.y))
     ? screenPt
@@ -3695,26 +3899,47 @@ canvas.addEventListener("contextmenu", (e)=>{
   syncTextPanelVisibility()
   showPropContextMenuForProp(picked, e.clientX, e.clientY)
 })
+function shouldInterceptAnyDropEvent(e){
+  return !!getDraggedPropIdFromEvent(e) || eventHasExternalImageFiles(e)
+}
+function handleGlobalDragOver(e){
+  if (!shouldInterceptAnyDropEvent(e)) return
+  e.preventDefault()
+  try { if (e.dataTransfer) e.dataTransfer.dropEffect = "copy" } catch {}
+}
+async function handleGlobalDrop(e){
+  if (!shouldInterceptAnyDropEvent(e)) return
+  e.preventDefault()
+  if (await maybeHandleExternalImageDrop(e)) return
+  maybeHandlePropDrop(e)
+}
+
+document.addEventListener("dragenter", handleGlobalDragOver, true)
+document.addEventListener("dragover", handleGlobalDragOver, true)
+document.addEventListener("drop", handleGlobalDrop, true)
+
 canvas.addEventListener("dragover", (e)=>{
-  if (!getDraggedPropIdFromEvent(e)) return
+  if (!shouldInterceptAnyDropEvent(e)) return
   e.preventDefault()
   try { if (e.dataTransfer) e.dataTransfer.dropEffect = "copy" } catch {}
 })
-canvas.addEventListener("drop", (e)=>{
-  // Prevent the window-level fallback drop handler from also placing a prop.
+canvas.addEventListener("drop", async (e)=>{
+  // Prevent the document/window fallback drop handler from also placing a prop.
   e.stopPropagation()
+  if (await maybeHandleExternalImageDrop(e)) return
   maybeHandlePropDrop(e)
 })
 // Fallback: if the drag lands on a non-canvas overlay element, still place onto the canvas at cursor position.
 window.addEventListener("dragover", (e)=>{
-  if (!getDraggedPropIdFromEvent(e)) return
+  if (!shouldInterceptAnyDropEvent(e)) return
   if (typeof e.clientX === 'number' && typeof e.clientY === 'number' && pointInsideCanvasClient(e.clientX, e.clientY)) {
     e.preventDefault()
     try { if (e.dataTransfer) e.dataTransfer.dropEffect = "copy" } catch {}
   }
 })
-window.addEventListener("drop", (e)=>{
+window.addEventListener("drop", async (e)=>{
   if (e.defaultPrevented) return
+  if (await maybeHandleExternalImageDrop(e)) return
   maybeHandlePropDrop(e)
 })
 canvas.addEventListener("wheel", (e)=>{
