@@ -402,7 +402,7 @@ const PATCH_NOTES = [
     groups: [
       { title: "Added", items: [
         "Informational cover page integrated directly into the app.",
-        "Patch notes hub accessible from the Dungeon Sketch version badge.",
+        "Patch notes hub accessible from the DelvSketch version badge.",
         "Feature overview and development status sections for orientation."
       ] },
       { title: "Fixed", items: [
@@ -2137,7 +2137,7 @@ function getSaveMapObject(){
   }
 
   return {
-    app: "Dungeon Sketch",
+    app: "DelvSketch",
     format: "dungeon-sketch-map",
     version: 5,
     savedAt: new Date().toISOString(),
@@ -2162,7 +2162,7 @@ function saveMapToFile(){
 }
 
 function openBugReport(){
-  const versionText = (document.getElementById("btnCoverHome")?.textContent || "Dungeon Sketch").trim()
+  const versionText = (document.getElementById("btnCoverHome")?.textContent || "DelvSketch").trim()
   const body = [
     "## Describe the bug",
     "",
@@ -3045,7 +3045,7 @@ function drawPdfOverviewPage(pdf, pageMm, opts, layout, tileData, printedTileLab
 
   pdf.setFontSize(16)
   pdf.setTextColor(20,25,30)
-  pdf.text('Dungeon Sketch — Tiled PDF Assembly', margin, headerY)
+  pdf.text('DelvSketch — Tiled PDF Assembly', margin, headerY)
 
   pdf.setFontSize(9)
   const meta1 = `Paper: ${opts.paper === 'A4' ? 'A4' : 'Letter'}  •  Orientation: ${layout.orientation}  •  Square size: ${opts.squareSizeIn.toFixed(2)} in`
