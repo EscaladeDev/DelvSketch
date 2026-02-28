@@ -1,4 +1,4 @@
-# Dungeon Sketch Proprietary License (Alpha)
+# DelvSketch Proprietary License (Alpha)
 ### Copyright (c) 2026 Escalade
 
 All rights reserved.
