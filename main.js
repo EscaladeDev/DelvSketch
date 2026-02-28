@@ -357,7 +357,7 @@ const puckSize = 120
 const C = { x: puckSize/2, y: puckSize/2 }
 const R = 50
 
-const UI_THEME_KEY = "dungeonSketch.uiTheme"
+const UI_THEME_KEY = "DelvSketch.uiTheme"
 
 function getPreferredTheme(){ return "light" }
 
@@ -769,7 +769,7 @@ let textEditorState = null
 const loadedGoogleFonts = new Set()
 const googleFontLoadPromises = new Map()
 const googleFontLinkEls = new Map()
-const GOOGLE_FONT_RECENTS_KEY = "dungeonSketch.googleFontRecents"
+const GOOGLE_FONT_RECENTS_KEY = "DelvSketch.googleFontRecents"
 
 function normalizeGoogleFontFamilyName(raw){
   return String(raw || "").replace(/["']/g, "").replace(/\s+/g, " ").trim()
@@ -2187,7 +2187,7 @@ function openBugReport(){
     title: "[Bug]: ",
     body
   })
-  window.open(`https://github.com/EscaladeDev/DungeonSketch/issues/new?${params.toString()}`, "_blank", "noopener")
+  window.open(`https://github.com/EscaladeDev/DelvSketch/issues/new?${params.toString()}`, "_blank", "noopener")
 }
 
 async function loadMapFromFile(file){
