@@ -2957,3 +2957,139 @@ body[data-theme="dark"] #btnBugReport:focus-visible{
 
 .toolInlineCheck{ display:inline-flex; align-items:center; gap:8px; }
 .toolInlineCheck input[type="checkbox"]{ margin:0; }
+
+
+.assetBrowserControls{
+  display:grid;
+  gap:8px;
+  margin:8px 0 10px;
+}
+.assetSearchInput{
+  width:100%;
+  min-width:0;
+  height:34px;
+  padding:0 11px;
+  border-radius:10px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.82);
+  color:rgba(17,24,39,.92);
+  outline:none;
+}
+.assetSearchInput:focus{
+  border-color:rgba(59,130,246,.45);
+  box-shadow:0 0 0 3px rgba(59,130,246,.12);
+}
+.propsTree{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+}
+.assetTreeChip{
+  appearance:none;
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(255,255,255,.72);
+  color:rgba(17,24,39,.85);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:11px;
+  line-height:1;
+  cursor:pointer;
+}
+.assetTreeChip.active{
+  background:rgba(37,99,235,.12);
+  border-color:rgba(37,99,235,.28);
+  color:rgba(29,78,216,.95);
+}
+.propTile .meta{
+  font-size:9px;
+  line-height:1.2;
+  color:rgba(71,85,105,.9);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+
+/* Asset browser tidy-up */
+.assetBrowserControls{
+  display:grid;
+  gap:10px;
+}
+.propsTree{
+  display:grid;
+  gap:10px;
+}
+.assetTreeGroup{
+  display:grid;
+  gap:6px;
+}
+.assetTreeGroupLabel{
+  padding:0 2px;
+  font-size:11px;
+  font-weight:700;
+  color:rgba(71,85,105,.78);
+}
+.assetTreeGroupChips{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.assetTreeChip{
+  min-height:36px;
+  border:1px solid rgba(148,163,184,.28);
+  background:rgba(255,255,255,.72);
+  color:rgba(17,24,39,.85);
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:11px;
+  line-height:1;
+  cursor:pointer;
+  box-shadow:0 1px 2px rgba(15,23,42,.04);
+}
+.assetTreeChip:hover{
+  border-color:rgba(37,99,235,.22);
+  background:rgba(255,255,255,.88);
+}
+.assetTreeChip.active{
+  background:rgba(37,99,235,.12);
+  border-color:rgba(37,99,235,.28);
+  color:rgba(29,78,216,.95);
+}
+.assetTreeGroup.breadcrumbs .assetTreeChip{
+  background:rgba(248,250,252,.95);
+}
+.assetTreeGroup.breadcrumbs .assetTreeChip.crumb::before{
+  content:"›";
+  display:inline-block;
+  margin-right:6px;
+  color:rgba(100,116,139,.82);
+}
+.assetTreeGroup.breadcrumbs .assetTreeChip:first-child::before{
+  content:"";
+  margin-right:0;
+}
+#assetsPage .propsShelf{
+  grid-template-columns:repeat(auto-fill, minmax(86px, 1fr));
+  gap:10px;
+  padding:10px;
+}
+.propTile{
+  grid-template-rows:72px;
+  align-items:center;
+  justify-items:center;
+  gap:0;
+  min-height:84px;
+  padding:6px;
+  overflow:hidden;
+}
+.propTile img{
+  display:block;
+  width:100%;
+  height:72px;
+}
+.propTile .name{
+  display:none;
+}
+.propTile .meta{
+  display:none;
+}

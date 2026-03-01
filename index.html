@@ -374,7 +374,11 @@
                                     <button id="btnPropsClear" type="button" title="Clear imported prop previews">Clear Imported</button>
                                   </div>
                                   <input id="propsFolderInput" type="file" accept=".png,.svg,.webp,.jpg,.jpeg,image/*" webkitdirectory multiple hidden>
-                                  <div class="propsHint">Prototype shelf for imported prop PNGs (doors, beds, fireplaces, etc.). Placement tools can hook into this next.</div>
+                                  <div class="propsHint">Asset library groups items by inferred tags and optional tag paths. Add tags only when you want to enrich browse behavior.</div>
+                                  <div class="assetBrowserControls">
+                                    <input id="propsSearchInput" class="assetSearchInput" type="search" placeholder="Search assets, tags, or ids">
+                                    <div id="propsTree" class="propsTree" aria-label="Asset categories"></div>
+                                  </div>
                                   <div id="propsShelf" class="propsShelf empty" aria-live="polite">
                                     <div class="propsEmpty">No props loaded yet</div>
                                   </div>

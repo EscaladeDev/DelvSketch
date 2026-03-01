@@ -168,6 +168,8 @@ const btnPropsClear = document.getElementById("btnPropsClear")
 const btnPropsDefaults = document.getElementById("btnPropsDefaults")
 const propsFolderInput = document.getElementById("propsFolderInput")
 const propsShelf = document.getElementById("propsShelf")
+const propsSearchInput = document.getElementById("propsSearchInput")
+const propsTree = document.getElementById("propsTree")
 const tabStyleBtn = document.getElementById("tabStyleBtn")
 const tabAssetsBtn = document.getElementById("tabAssetsBtn")
 const leftDrawer = document.getElementById("leftDrawer")
@@ -811,6 +813,9 @@ function normalizePlacedPropObj(p){
     flipX: p?.flipX === true,
     flipY: p?.flipY === true,
     shadowDisabled: p?.shadowDisabled === true,
+    tags: Array.isArray(p?.tags) ? p.tags.slice() : normalizeAssetTags(p?.tags),
+    navPaths: Array.isArray(p?.navPaths) ? p.navPaths.slice() : normalizeAssetTags(p?.navPaths),
+    primaryPath: String(p?.primaryPath || ''),
   }
 }
 function getPlacedPropRenderSize(prop){
@@ -1922,7 +1927,193 @@ let builtInPropsCatalog = []
 let importedPropsCatalog = []
 let propsCatalog = []
 let bundledPropsLoadQueued = false
+let assetBrowserActivePath = "all"
+let assetBrowserSearchTerm = ""
 
+function slugifyAssetToken(value){
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+function titleCaseAssetToken(value){
+  return String(value || '').replace(/[-_]+/g, ' ').replace(/\w/g, ch => ch.toUpperCase())
+}
+function inferAssetTagPaths(meta = {}){
+  const out = []
+  const push = (value) => {
+    const path = String(value || '').trim().replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/')
+    if (path) out.push(path.toLowerCase())
+  }
+  const category = String(meta.category || '').toLowerCase()
+  const name = String(meta.name || '').toLowerCase()
+  const id = String(meta.id || '').toLowerCase()
+  const src = String(meta.src || '').toLowerCase()
+  if (meta.source === 'imported') { push('imported'); push('custom/imported') }
+  if (category.includes('floor')) push('details/floor')
+  if (/door|arch/.test(name + ' ' + id + ' ' + src)) push('structure/doors')
+  if (/bed/.test(name + ' ' + id + ' ' + src)) push('interior/furniture/beds')
+  if (/table/.test(name + ' ' + id + ' ' + src)) push('interior/furniture/tables')
+  if (/chest|crate/.test(name + ' ' + id + ' ' + src)) push('interior/storage')
+  if (/campfire|brazier|torch|fire/.test(name + ' ' + id + ' ' + src)) push('lighting/fire')
+  if (/stairs/.test(name + ' ' + id + ' ' + src)) push('structure/stairs')
+  if (/column/.test(name + ' ' + id + ' ' + src)) push('structure/columns')
+  if (/grate|drain/.test(name + ' ' + id + ' ' + src)) push('details/floor/drains')
+  if (/cobweb|web/.test(name + ' ' + id + ' ' + src)) push('details/dressing/cobwebs')
+  if (!out.length) push(category.includes('floor') ? 'details/misc' : 'props/misc')
+  return Array.from(new Set(out))
+}
+function normalizeAssetTags(input){
+  if (Array.isArray(input)) return input.map(v => String(v || '').trim()).filter(Boolean)
+  if (typeof input === 'string') return input.split(',').map(v => v.trim()).filter(Boolean)
+  return []
+}
+function buildAssetTaxonomyMeta(meta = {}){
+  const explicit = normalizeAssetTags(meta.tags)
+  const pathTags = []
+  const plainTags = []
+  for (const tag of explicit){
+    if (tag.includes('/')) pathTags.push(tag.toLowerCase())
+    else plainTags.push(tag.toLowerCase())
+  }
+  const inferredPaths = inferAssetTagPaths(meta)
+  const navPaths = Array.from(new Set([...inferredPaths, ...pathTags]))
+  const category = String(meta.category || '').toLowerCase()
+  const source = String(meta.source || '').toLowerCase()
+  const implicit = [
+    category || null,
+    source || null,
+    slugifyAssetToken(meta.name),
+    slugifyAssetToken(meta.id)
+  ].filter(Boolean)
+  for (const p of navPaths){
+    const parts = p.split('/').map(slugifyAssetToken).filter(Boolean)
+    implicit.push(...parts)
+  }
+  const tags = Array.from(new Set([...plainTags.map(slugifyAssetToken), ...implicit])).filter(Boolean)
+  const primaryPath = navPaths[0] || 'props/misc'
+  return { tags, navPaths, primaryPath }
+}
+function attachAssetTaxonomy(prop, meta = {}){
+  const tax = buildAssetTaxonomyMeta({ ...prop, ...meta })
+  prop.tags = tax.tags
+  prop.navPaths = tax.navPaths
+  prop.primaryPath = tax.primaryPath
+  prop.searchText = [prop.name, prop.id, prop.source, ...(prop.tags || []), ...(prop.navPaths || [])].filter(Boolean).join(' ').toLowerCase()
+  return prop
+}
+function getAssetBrowserNodes(list){
+  const nodes = new Map()
+  nodes.set('all', { path:'all', label:'All', count:Array.isArray(list) ? list.length : 0, depth:0, parentPath:null, children:[] })
+  for (const item of (list || [])) {
+    const paths = Array.isArray(item?.navPaths) && item.navPaths.length ? item.navPaths : [item?.primaryPath || 'props/misc']
+    for (const path of paths){
+      const parts = String(path || '').split('/').filter(Boolean)
+      let accum = ''
+      for (let i = 0; i < parts.length; i++){
+        const part = parts[i]
+        const parent = accum || 'all'
+        accum = accum ? `${accum}/${part}` : part
+        const key = accum.toLowerCase()
+        const node = nodes.get(key) || { path:key, label:titleCaseAssetToken(part), count:0, depth:i + 1, parentPath:parent, children:[] }
+        node.count += 1
+        node.depth = i + 1
+        node.parentPath = parent
+        nodes.set(key, node)
+        const parentNode = nodes.get(parent)
+        if (parentNode && !parentNode.children.includes(key)) parentNode.children.push(key)
+      }
+    }
+  }
+  return nodes
+}
+function sortAssetBrowserNodes(a, b){
+  if (!a && !b) return 0
+  if (!a) return 1
+  if (!b) return -1
+  const countDiff = Number(b.count || 0) - Number(a.count || 0)
+  if (countDiff) return countDiff
+  const depthDiff = Number(a.depth || 0) - Number(b.depth || 0)
+  if (depthDiff) return depthDiff
+  return String(a.label || a.path || '').localeCompare(String(b.label || b.path || ''), undefined, { sensitivity:'base', numeric:true })
+}
+function getAssetBrowserAncestors(path, nodes){
+  const out = []
+  let current = String(path || 'all').toLowerCase()
+  while (current && current !== 'all'){
+    const node = nodes.get(current)
+    if (!node) break
+    out.unshift(node)
+    current = node.parentPath || 'all'
+  }
+  return out
+}
+function assetMatchesBrowser(prop){
+  if (!prop) return false
+  const term = String(assetBrowserSearchTerm || '').trim().toLowerCase()
+  const path = String(assetBrowserActivePath || 'all').toLowerCase()
+  const matchesPath = (path === 'all') || (Array.isArray(prop.navPaths) && prop.navPaths.some(p => p === path || p.startsWith(path + '/'))) || String(prop.primaryPath || '').toLowerCase() === path
+  if (!matchesPath) return false
+  if (!term) return true
+  return String(prop.searchText || '').includes(term)
+}
+function renderAssetTree(){
+  if (!propsTree) return
+  propsTree.innerHTML = ''
+  const nodes = getAssetBrowserNodes(propsCatalog)
+  const allNode = nodes.get('all') || { path:'all', label:'All', count:Array.isArray(propsCatalog) ? propsCatalog.length : 0, children:[] }
+  let activePath = String(assetBrowserActivePath || 'all').toLowerCase()
+  if (activePath !== 'all' && !nodes.has(activePath)) activePath = assetBrowserActivePath = 'all'
+
+  const makeChip = (node, extraClass = '') => {
+    if (!node) return null
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'assetTreeChip' + (node.path === activePath ? ' active' : '') + (extraClass ? ` ${extraClass}` : '')
+    btn.textContent = `${node.label} (${node.count})`
+    btn.title = node.path
+    btn.addEventListener('click', () => {
+      assetBrowserActivePath = (node.path === activePath) ? 'all' : node.path
+      renderPropsShelf()
+    })
+    return btn
+  }
+  const addGroup = (label, items, kind = '') => {
+    if (!Array.isArray(items) || !items.length) return
+    const wrap = document.createElement('div')
+    wrap.className = 'assetTreeGroup' + (kind ? ` ${kind}` : '')
+    if (label){
+      const heading = document.createElement('div')
+      heading.className = 'assetTreeGroupLabel'
+      heading.textContent = label
+      wrap.appendChild(heading)
+    }
+    const chips = document.createElement('div')
+    chips.className = 'assetTreeGroupChips'
+    for (const item of items){
+      const chip = makeChip(item, kind === 'breadcrumbs' ? 'crumb' : '')
+      if (chip) chips.appendChild(chip)
+    }
+    wrap.appendChild(chips)
+    propsTree.appendChild(wrap)
+  }
+
+  const rootNodes = (allNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
+  const activeNode = nodes.get(activePath)
+
+  addGroup('', [allNode, ...rootNodes], 'roots')
+
+  if (activePath !== 'all' && activeNode){
+    const ancestors = getAssetBrowserAncestors(activePath, nodes)
+    addGroup('Path', ancestors, 'breadcrumbs')
+
+    const childNodes = (activeNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
+    if (childNodes.length){
+      addGroup('Narrow further', childNodes, 'children')
+    } else {
+      const parentNode = nodes.get(activeNode.parentPath || 'all') || allNode
+      const siblingNodes = (parentNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
+      if (siblingNodes.length > 1) addGroup('Same level', siblingNodes, 'siblings')
+    }
+  }
+}
 function makeCustomAssetId(seed = "asset"){
   const base = String(seed || "asset").replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() || "asset"
   const suffix = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now() + Math.random())
@@ -1945,14 +2136,14 @@ function isEmbeddedCustomPropLike(value){
 }
 function buildImportedPropFromEmbeddedAsset(asset, i = 0){
   if (!asset || !asset.assetId || !asset.data) return null
-  return {
+  return attachAssetTaxonomy({
     id: String(asset.assetId),
     assetId: String(asset.assetId),
     name: String(asset.name || `Image ${i+1}`).replace(/\.[^.]+$/, "") || `Image ${i+1}`,
     url: String(asset.data),
     mime: String(asset.mime || getMimeFromDataUrl(asset.data) || ''),
     source: 'imported'
-  }
+  }, { tags: asset.tags || ['imported', 'custom/imported'] })
 }
 function rebuildImportedPropsFromEmbeddedAssets(list){
   importedPropsCatalog = Array.isArray(list)
@@ -1978,6 +2169,7 @@ function collectUsedEmbeddedAssetsFromPlacedProps(list){
       assetId: id,
       name: String(p.name || 'Image'),
       mime: String(p.mime || getMimeFromDataUrl(data) || ''),
+      tags: Array.isArray(p.navPaths) && p.navPaths.length ? p.navPaths.slice() : (Array.isArray(p.tags) ? p.tags.slice() : ['imported', 'custom/imported']),
       data
     })
   }
@@ -2005,6 +2197,9 @@ function serializePlacedPropsForSave(list){
       flipX: p.flipX,
       flipY: p.flipY,
       shadowDisabled: p.shadowDisabled,
+      tags: Array.isArray(p.tags) ? p.tags.slice() : undefined,
+      navPaths: Array.isArray(p.navPaths) ? p.navPaths.slice() : undefined,
+      primaryPath: p.primaryPath,
     }
     if (!(p.assetId || p.source === 'imported' || isEmbeddedCustomPropLike(p.url))) {
       out.url = p.url
@@ -2023,13 +2218,19 @@ function hydratePlacedPropsWithEmbeddedAssets(list, embeddedAssets){
       p.mime = String(asset.mime || p.mime || getMimeFromDataUrl(asset.data) || '')
       p.source = 'imported'
       if (!p.propId) p.propId = String(asset.assetId)
+      attachAssetTaxonomy(p, { tags: asset.tags || p.navPaths || p.tags || ['imported', 'custom/imported'] })
+    } else {
+      attachAssetTaxonomy(p, { tags: p.navPaths || p.tags || [] })
     }
     return p
   }).filter(p => p && p.url)
 }
 
 function rebuildPropsCatalog(){
-  propsCatalog = [...builtInPropsCatalog, ...importedPropsCatalog]
+  propsCatalog = [...builtInPropsCatalog, ...importedPropsCatalog].map(p => attachAssetTaxonomy(p, { tags: p.navPaths || p.tags || [] }))
+  const validPaths = new Set(['all'])
+  for (const p of propsCatalog){ for (const path of (p.navPaths || [])) validPaths.add(String(path).toLowerCase()) }
+  if (!validPaths.has(String(assetBrowserActivePath || 'all').toLowerCase())) assetBrowserActivePath = 'all'
 }
 
 function clearPropObjectURLs(list = importedPropsCatalog){
@@ -2091,7 +2292,7 @@ async function loadBundledPropsManifest(force = false){
         const baseDir = manifestPath.replace(/[^/]+$/, "")
         const resolvedSrc = /^(https?:|data:|blob:|\/)/i.test(src) ? src : (baseDir + src)
         const meta = normalizePropManifestMeta(a)
-        merged.push({
+        merged.push(attachAssetTaxonomy({
           id: String(a.id || `${manifestPath}-builtin-${i}`),
           name: String(a.name || a.src).replace(/\.[^.]+$/, ""),
           url: resolvedSrc,
@@ -2102,7 +2303,7 @@ async function loadBundledPropsManifest(force = false){
           rot: Number(a.rot || 0) || 0,
           castShadow: (meta.shadowMode !== 'none') && (a.castShadow !== false),
           shadow: { mode: meta.shadowMode, profile: meta.shadowProfile }
-        })
+        }, { src, tags: a.tags || [] }))
       }
     } catch (err) {
       if (manifestPath === "assets/props/manifest.json") {
@@ -2153,16 +2354,18 @@ async function pickPropsFolder(){
 function renderPropsShelf(){
   if (!propsShelf) return
   propsShelf.innerHTML = ""
-  if (!Array.isArray(propsCatalog) || propsCatalog.length === 0){
+  renderAssetTree()
+  const visible = (Array.isArray(propsCatalog) ? propsCatalog : []).filter(assetMatchesBrowser)
+  if (!visible.length){
     propsShelf.classList.add("empty")
     const empty = document.createElement("div")
     empty.className = "propsEmpty"
-    empty.textContent = "No props loaded yet"
+    empty.textContent = (Array.isArray(propsCatalog) && propsCatalog.length) ? "No assets match this filter" : "No props loaded yet"
     propsShelf.appendChild(empty)
     return
   }
   propsShelf.classList.remove("empty")
-  for (const prop of propsCatalog){
+  for (const prop of visible){
     const tile = document.createElement("button")
     tile.type = "button"
     tile.className = "propTile"
@@ -2189,7 +2392,6 @@ function renderPropsShelf(){
     tile.appendChild(badge)
 
     tile.addEventListener("click", () => {
-      // Drag/drop is the primary prop placement flow; clicking a tile just focuses the Assets tab.
       setPanelTab("assets")
     })
 
@@ -2221,14 +2423,16 @@ function fileLooksLikeSupportedImage(file){
 async function makeImportedPropFromFile(f, i=0){
   const assetId = makeCustomAssetId(f?.name || `image-${i+1}`)
   const dataUrl = await readFileAsDataURL(f)
-  return {
+  const baseName = String(f?.name || `Image ${i+1}`).replace(/\.[^.]+$/, "") || `Image ${i+1}`
+  const filenameTag = slugifyAssetToken(baseName)
+  return attachAssetTaxonomy({
     id: assetId,
     assetId,
-    name: String(f?.name || `Image ${i+1}`).replace(/\.[^.]+$/, "") || `Image ${i+1}`,
+    name: baseName,
     url: dataUrl,
     mime: String(f?.type || getMimeFromDataUrl(dataUrl) || ''),
     source: "imported"
-  }
+  }, { tags: ['imported', 'custom/imported', filenameTag] })
 }
 async function appendImportedPropsFromFiles(fileList){
   const files = Array.from(fileList || [])
@@ -2241,6 +2445,7 @@ async function appendImportedPropsFromFiles(fileList){
   rebuildPropsCatalog()
   for (const p of fresh) getPropImage(p)
   armedPropId = null
+  assetBrowserActivePath = 'custom'
   renderPropsShelf()
   setPanelTab("assets")
   return fresh
@@ -2522,6 +2727,10 @@ if (propsFolderInput) propsFolderInput.addEventListener("change", async (e) => {
   e.target.value = ""
 })
 renderPropsShelf()
+if (propsSearchInput) propsSearchInput.addEventListener("input", () => {
+  assetBrowserSearchTerm = String(propsSearchInput.value || '')
+  renderPropsShelf()
+})
 queueBundledPropsLoad()
 if (fileLoadMap) fileLoadMap.addEventListener("change", async (e) => {
   const file = e.target.files && e.target.files[0]
