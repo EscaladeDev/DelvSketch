@@ -1952,76 +1952,156 @@ function slugifyAssetToken(value){
   return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 function titleCaseAssetToken(value){
-  return String(value || '').replace(/[-_]+/g, ' ').replace(/\w/g, ch => ch.toUpperCase())
+  return String(value || '').replace(/[-_]+/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())
 }
-function inferAssetTagPaths(meta = {}){
+function normalizeAssetTags(input){
+  if (Array.isArray(input)) return input.map(v => slugifyAssetToken(v)).filter(Boolean)
+  if (typeof input === 'string') return input.split(',').map(v => slugifyAssetToken(v)).filter(Boolean)
+  return []
+}
+function inferFlatAssetTags(meta = {}){
   const out = []
-  const push = (value) => {
-    const path = String(value || '').trim().replace(/^\/+|\/+$/g, '').replace(/\/{2,}/g, '/')
-    if (path) out.push(path.toLowerCase())
+  const push = (...values) => {
+    for (const value of values){
+      const token = slugifyAssetToken(value)
+      if (token) out.push(token)
+    }
   }
   const category = String(meta.category || '').toLowerCase()
   const name = String(meta.name || '').toLowerCase()
   const id = String(meta.id || '').toLowerCase()
   const src = String(meta.src || '').toLowerCase()
-  if (meta.source === 'imported') { push('imported'); push('custom/imported') }
-  if (category.includes('floor')) push('details/floor')
-  if (/door|arch/.test(name + ' ' + id + ' ' + src)) push('structure/doors')
-  if (/bed/.test(name + ' ' + id + ' ' + src)) push('interior/furniture/beds')
-  if (/table/.test(name + ' ' + id + ' ' + src)) push('interior/furniture/tables')
-  if (/chest|crate/.test(name + ' ' + id + ' ' + src)) push('interior/storage')
-  if (/campfire|brazier|torch|fire/.test(name + ' ' + id + ' ' + src)) push('lighting/fire')
-  if (/stairs/.test(name + ' ' + id + ' ' + src)) push('structure/stairs')
-  if (/column/.test(name + ' ' + id + ' ' + src)) push('structure/columns')
-  if (/grate|drain/.test(name + ' ' + id + ' ' + src)) push('details/floor/drains')
-  if (/cobweb|web/.test(name + ' ' + id + ' ' + src)) push('details/dressing/cobwebs')
-  if (!out.length) push(category.includes('floor') ? 'details/misc' : 'props/misc')
+  const haystack = `${name} ${id} ${src}`
+  if (meta.source === 'imported') push('imported', 'custom')
+  if (category) push(category)
+  if (category.includes('floor')) push('details', 'floor')
+  if (/door|arch/.test(haystack)) push('structure', 'doors')
+  if (/bed/.test(haystack)) push('interior', 'furniture', 'sleeping', 'beds')
+  if (/table/.test(haystack)) push('interior', 'furniture', 'tables')
+  if (/chest|crate/.test(haystack)) push('interior', 'storage')
+  if (/campfire|brazier|torch|fire/.test(haystack)) push('lighting', 'fire')
+  if (/stairs/.test(haystack)) push('structure', 'stairs')
+  if (/column/.test(haystack)) push('structure', 'columns')
+  if (/grate|drain/.test(haystack)) push('details', 'floor', 'drains')
+  if (/cobweb|web/.test(haystack)) push('details', 'dressing', 'cobwebs')
+  if (!out.length) push(category.includes('floor') ? 'details' : 'props', 'misc')
   return Array.from(new Set(out))
 }
-function normalizeAssetTags(input){
-  if (Array.isArray(input)) return input.map(v => String(v || '').trim()).filter(Boolean)
-  if (typeof input === 'string') return input.split(',').map(v => v.trim()).filter(Boolean)
-  return []
+function buildCatalogTagModel(list = []){
+  const tagCounts = new Map()
+  const pairCounts = new Map()
+  const items = Array.isArray(list) ? list : []
+  for (const item of items){
+    const tags = Array.from(new Set(normalizeAssetTags(item?.tags)))
+    for (const tag of tags) tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+    for (let i = 0; i < tags.length; i++){
+      for (let j = i + 1; j < tags.length; j++){
+        const a = tags[i]
+        const b = tags[j]
+        const key = a < b ? `${a}|${b}` : `${b}|${a}`
+        pairCounts.set(key, (pairCounts.get(key) || 0) + 1)
+      }
+    }
+  }
+  const getPairCount = (a, b) => {
+    if (!a || !b || a === b) return 0
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`
+    return pairCounts.get(key) || 0
+  }
+  const parentMap = new Map()
+  for (const child of tagCounts.keys()){
+    const childCount = tagCounts.get(child) || 0
+    const candidates = []
+    for (const parent of tagCounts.keys()){
+      if (!parent || parent === child) continue
+      const parentCount = tagCounts.get(parent) || 0
+      if (parentCount < childCount) continue
+      const pairCount = getPairCount(child, parent)
+      if (!pairCount) continue
+      const confidence = pairCount / Math.max(1, childCount)
+      if (confidence < 0.34) continue
+      const breadth = parentCount / Math.max(1, childCount)
+      const score = confidence * 4 + Math.min(breadth, 4) + (parent.length < child.length ? 0.2 : 0)
+      candidates.push({ tag: parent, score, pairCount, parentCount, childCount })
+    }
+    candidates.sort((a, b) => b.score - a.score || b.pairCount - a.pairCount || b.parentCount - a.parentCount || a.tag.localeCompare(b.tag))
+    parentMap.set(child, candidates.slice(0, 3).map(c => c.tag))
+  }
+  return { tagCounts, pairCounts, parentMap, getPairCount }
 }
-function buildAssetTaxonomyMeta(meta = {}){
+function deriveNavPathsFromTags(tags, model = null){
+  const normalized = Array.from(new Set(normalizeAssetTags(tags)))
+  if (!normalized.length) return ['misc']
+  if (!model) return normalized
+  const tagCounts = model.tagCounts || new Map()
+  const parentMap = model.parentMap || new Map()
+  const results = new Set()
+  const maxDepth = 4
+  const tagSet = new Set(normalized)
+  const addPath = (parts) => {
+    const clean = parts.map(slugifyAssetToken).filter(Boolean)
+    if (clean.length) results.add(clean.join('/'))
+  }
+  for (const tag of normalized) addPath([tag])
+  const recurse = (leaf, path, visited, depth) => {
+    if (depth >= maxDepth) return
+    const parents = (parentMap.get(leaf) || []).filter(parent => tagSet.has(parent) && !visited.has(parent))
+    for (const parent of parents){
+      const next = [parent, ...path]
+      addPath(next)
+      const nextVisited = new Set(visited)
+      nextVisited.add(parent)
+      recurse(parent, next, nextVisited, depth + 1)
+    }
+  }
+  const leaves = normalized.slice().sort((a, b) => {
+    const countDiff = (tagCounts.get(a) || 0) - (tagCounts.get(b) || 0)
+    if (countDiff) return countDiff
+    return a.localeCompare(b)
+  })
+  for (const leaf of leaves){
+    recurse(leaf, [leaf], new Set([leaf]), 1)
+  }
+  return Array.from(results).sort((a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b))
+}
+function buildAssetTaxonomyMeta(meta = {}, model = null){
   const explicit = normalizeAssetTags(meta.tags)
-  const pathTags = []
-  const plainTags = []
-  for (const tag of explicit){
-    if (tag.includes('/')) pathTags.push(tag.toLowerCase())
-    else plainTags.push(tag.toLowerCase())
-  }
-  const inferredPaths = inferAssetTagPaths(meta)
-  const navPaths = Array.from(new Set([...inferredPaths, ...pathTags]))
-  const category = String(meta.category || '').toLowerCase()
-  const source = String(meta.source || '').toLowerCase()
-  const implicit = [
-    category || null,
-    source || null,
-    slugifyAssetToken(meta.name),
-    slugifyAssetToken(meta.id)
-  ].filter(Boolean)
-  for (const p of navPaths){
-    const parts = p.split('/').map(slugifyAssetToken).filter(Boolean)
-    implicit.push(...parts)
-  }
-  const tags = Array.from(new Set([...plainTags.map(slugifyAssetToken), ...implicit])).filter(Boolean)
-  const primaryPath = navPaths[0] || 'props/misc'
+  const inferred = explicit.length ? [] : inferFlatAssetTags(meta)
+  const tags = Array.from(new Set([...explicit, ...inferred]))
+  const navPaths = deriveNavPathsFromTags(tags, model)
+  const primaryPath = navPaths.slice().sort((a, b) => b.split('/').length - a.split('/').length || a.localeCompare(b))[0] || tags[0] || 'misc'
   return { tags, navPaths, primaryPath }
 }
-function attachAssetTaxonomy(prop, meta = {}){
-  const tax = buildAssetTaxonomyMeta({ ...prop, ...meta })
+function attachAssetTaxonomy(prop, meta = {}, model = null){
+  const tax = buildAssetTaxonomyMeta({ ...prop, ...meta }, model)
   prop.tags = tax.tags
   prop.navPaths = tax.navPaths
   prop.primaryPath = tax.primaryPath
-  prop.searchText = [prop.name, prop.id, prop.source, ...(prop.tags || []), ...(prop.navPaths || [])].filter(Boolean).join(' ').toLowerCase()
+  prop.searchText = [prop.name, prop.id, prop.source, prop.category, ...(prop.tags || []), ...(prop.navPaths || [])].filter(Boolean).join(' ').toLowerCase()
   return prop
 }
 function getAssetBrowserNodes(list){
   const nodes = new Map()
-  nodes.set('all', { path:'all', label:'All', count:Array.isArray(list) ? list.length : 0, depth:0, parentPath:null, children:[] })
-  for (const item of (list || [])) {
-    const paths = Array.isArray(item?.navPaths) && item.navPaths.length ? item.navPaths : [item?.primaryPath || 'props/misc']
+  const seenByNode = new Map()
+  const items = Array.isArray(list) ? list : []
+  nodes.set('all', { path:'all', label:'All', count:items.length, depth:0, parentPath:null, children:[] })
+  const bumpNode = (key, label, depth, parentPath, assetKey) => {
+    const node = nodes.get(key) || { path:key, label, count:0, depth, parentPath, children:[] }
+    node.label = label
+    node.depth = depth
+    node.parentPath = parentPath
+    if (!seenByNode.has(key)) seenByNode.set(key, new Set())
+    const seen = seenByNode.get(key)
+    if (!seen.has(assetKey)) {
+      seen.add(assetKey)
+      node.count += 1
+    }
+    nodes.set(key, node)
+    return node
+  }
+  for (const item of items) {
+    const assetKey = String(item?.assetId || item?.propId || item?.id || item?.name || Math.random())
+    const paths = Array.isArray(item?.navPaths) && item.navPaths.length ? item.navPaths : [item?.primaryPath || 'misc']
     for (const path of paths){
       const parts = String(path || '').split('/').filter(Boolean)
       let accum = ''
@@ -2030,11 +2110,7 @@ function getAssetBrowserNodes(list){
         const parent = accum || 'all'
         accum = accum ? `${accum}/${part}` : part
         const key = accum.toLowerCase()
-        const node = nodes.get(key) || { path:key, label:titleCaseAssetToken(part), count:0, depth:i + 1, parentPath:parent, children:[] }
-        node.count += 1
-        node.depth = i + 1
-        node.parentPath = parent
-        nodes.set(key, node)
+        bumpNode(key, titleCaseAssetToken(part), i + 1, parent, assetKey)
         const parentNode = nodes.get(parent)
         if (parentNode && !parentNode.children.includes(key)) parentNode.children.push(key)
       }
@@ -2063,12 +2139,69 @@ function getAssetBrowserAncestors(path, nodes){
   }
   return out
 }
+function encodeRelatedAssetBrowserPath(basePath, tags){
+  const base = String(basePath || 'all').toLowerCase()
+  const list = Array.isArray(tags) ? tags : [tags]
+  const normalized = Array.from(new Set(list.map(slugifyAssetToken).filter(Boolean)))
+  if (!normalized.length) return base
+  return `related:${base}|${normalized.join('+')}`
+}
+function parseAssetBrowserPathState(path){
+  const raw = String(path || 'all').toLowerCase()
+  if (!raw.startsWith('related:')) return { mode:'path', raw, basePath:raw || 'all', tag:'', tags:[] }
+  const payload = raw.slice('related:'.length)
+  const pipeIndex = payload.lastIndexOf('|')
+  if (pipeIndex === -1) return { mode:'path', raw, basePath:'all', tag:'', tags:[] }
+  const basePath = payload.slice(0, pipeIndex) || 'all'
+  const tags = Array.from(new Set(String(payload.slice(pipeIndex + 1) || '').split('+').map(slugifyAssetToken).filter(Boolean)))
+  return { mode:'related', raw, basePath, tag:tags[tags.length - 1] || '', tags }
+}
+function getRelatedTagNodesForSelection(items, activePath, nodes){
+  const list = Array.isArray(items) ? items : []
+  const pathState = parseAssetBrowserPathState(activePath)
+  const excluded = new Set(String(pathState.basePath || 'all').split('/').map(slugifyAssetToken).filter(Boolean))
+  for (const activeTag of (pathState.tags || [])) excluded.add(activeTag)
+  const contextualCounts = new Map()
+  for (const item of list){
+    const seenTags = new Set()
+    const tags = normalizeAssetTags(item?.tags)
+    for (const tag of tags){
+      if (!tag || excluded.has(tag) || seenTags.has(tag)) continue
+      seenTags.add(tag)
+      contextualCounts.set(tag, (contextualCounts.get(tag) || 0) + 1)
+    }
+  }
+  return Array.from(contextualCounts.keys()).map(tag => {
+    const existing = nodes.get(tag)
+    const globalCount = existing?.count || (Array.isArray(propsCatalog) ? propsCatalog.filter(asset => normalizeAssetTags(asset?.tags).includes(tag)).length : 0)
+    return {
+      path: existing?.path || tag || encodeRelatedAssetBrowserPath(pathState.basePath, [...(pathState.tags || []), tag]),
+      label: existing?.label || titleCaseAssetToken(tag),
+      count: globalCount,
+      contextualCount: contextualCounts.get(tag) || 0,
+      depth: existing?.depth || 1,
+      parentPath: existing?.parentPath || 'all',
+      children: existing?.children || [],
+      relatedTag: tag,
+      basePath: pathState.basePath || 'all'
+    }
+  }).sort(sortAssetBrowserNodes)
+}
 function assetMatchesBrowser(prop){
   if (!prop) return false
   const term = String(assetBrowserSearchTerm || '').trim().toLowerCase()
-  const path = String(assetBrowserActivePath || 'all').toLowerCase()
-  const matchesPath = (path === 'all') || (Array.isArray(prop.navPaths) && prop.navPaths.some(p => p === path || p.startsWith(path + '/'))) || String(prop.primaryPath || '').toLowerCase() === path
-  if (!matchesPath) return false
+  const pathState = parseAssetBrowserPathState(assetBrowserActivePath || 'all')
+  const basePath = String(pathState.basePath || 'all').toLowerCase()
+  const navPaths = Array.isArray(prop.navPaths) ? prop.navPaths.map(p => String(p || '').toLowerCase()) : []
+  const primaryPath = String(prop.primaryPath || '').toLowerCase()
+  const matchesBasePath = (basePath === 'all') || navPaths.some(p => p === basePath || p.startsWith(basePath + '/')) || primaryPath === basePath
+  if (!matchesBasePath) return false
+  if (pathState.mode === 'related' && Array.isArray(pathState.tags) && pathState.tags.length) {
+    const tags = normalizeAssetTags(prop?.tags)
+    for (const activeTag of pathState.tags){
+      if (!tags.includes(activeTag)) return false
+    }
+  }
   if (!term) return true
   return String(prop.searchText || '').includes(term)
 }
@@ -2077,8 +2210,9 @@ function renderAssetTree(){
   propsTree.innerHTML = ''
   const nodes = getAssetBrowserNodes(propsCatalog)
   const allNode = nodes.get('all') || { path:'all', label:'All', count:Array.isArray(propsCatalog) ? propsCatalog.length : 0, children:[] }
-  let activePath = String(assetBrowserActivePath || 'all').toLowerCase()
-  if (activePath !== 'all' && !nodes.has(activePath)) activePath = assetBrowserActivePath = 'all'
+  const pathState = parseAssetBrowserPathState(assetBrowserActivePath || 'all')
+  let activePath = pathState.raw
+  if (pathState.mode === 'path' && activePath !== 'all' && !nodes.has(activePath)) activePath = assetBrowserActivePath = 'all'
 
   const makeChip = (node, extraClass = '') => {
     if (!node) return null
@@ -2114,21 +2248,43 @@ function renderAssetTree(){
   }
 
   const rootNodes = (allNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
-  const activeNode = nodes.get(activePath)
+  const activeNode = pathState.mode === 'related' ? nodes.get(pathState.basePath || 'all') : nodes.get(activePath)
 
   addGroup('', [allNode, ...rootNodes], 'roots')
 
   if (activePath !== 'all' && activeNode){
-    const ancestors = getAssetBrowserAncestors(activePath, nodes)
+    const ancestors = getAssetBrowserAncestors(pathState.mode === 'related' ? (pathState.basePath || 'all') : activePath, nodes)
+    if (pathState.mode === 'related' && Array.isArray(pathState.tags) && pathState.tags.length){
+      pathState.tags.forEach((activeTag, index) => {
+        ancestors.push({
+          path: encodeRelatedAssetBrowserPath(pathState.basePath, pathState.tags.slice(0, index + 1)),
+          label: titleCaseAssetToken(activeTag),
+          count: (Array.isArray(propsCatalog) ? propsCatalog : []).filter(asset => {
+            const tags = normalizeAssetTags(asset?.tags)
+            const navPaths = Array.isArray(asset?.navPaths) ? asset.navPaths.map(p => String(p || '').toLowerCase()) : []
+            const primaryPath = String(asset?.primaryPath || '').toLowerCase()
+            const base = String(pathState.basePath || 'all').toLowerCase()
+            const matchesBasePath = (base === 'all') || navPaths.some(p => p === base || p.startsWith(base + '/')) || primaryPath === base
+            if (!matchesBasePath) return false
+            return pathState.tags.slice(0, index + 1).every(tag => tags.includes(tag))
+          }).length,
+          depth: Number(activeNode?.depth || 0) + 1 + index,
+          parentPath: index ? encodeRelatedAssetBrowserPath(pathState.basePath, pathState.tags.slice(0, index)) : (pathState.basePath || 'all'),
+          children: []
+        })
+      })
+    }
     addGroup('Path', ancestors, 'breadcrumbs')
 
-    const childNodes = (activeNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
+    const childNodes = pathState.mode === 'related'
+      ? []
+      : (activeNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
     if (childNodes.length){
       addGroup('Narrow further', childNodes, 'children')
     } else {
-      const parentNode = nodes.get(activeNode.parentPath || 'all') || allNode
-      const siblingNodes = (parentNode.children || []).map(path => nodes.get(path)).filter(Boolean).sort(sortAssetBrowserNodes)
-      if (siblingNodes.length > 1) addGroup('Same level', siblingNodes, 'siblings')
+      const selectedItems = (Array.isArray(propsCatalog) ? propsCatalog : []).filter(assetMatchesBrowser)
+      const relatedTagNodes = getRelatedTagNodesForSelection(selectedItems, activePath, nodes).filter(node => String(node.path || '').toLowerCase() !== activePath)
+      if (relatedTagNodes.length) addGroup('Related tags', relatedTagNodes, 'siblings')
     }
   }
 }
@@ -2161,7 +2317,7 @@ function buildImportedPropFromEmbeddedAsset(asset, i = 0){
     url: String(asset.data),
     mime: String(asset.mime || getMimeFromDataUrl(asset.data) || ''),
     source: 'imported'
-  }, { tags: asset.tags || ['imported', 'custom/imported'] })
+  }, { tags: asset.tags || ['imported', 'custom'] })
 }
 function rebuildImportedPropsFromEmbeddedAssets(list){
   importedPropsCatalog = Array.isArray(list)
@@ -2187,7 +2343,7 @@ function collectUsedEmbeddedAssetsFromPlacedProps(list){
       assetId: id,
       name: String(p.name || 'Image'),
       mime: String(p.mime || getMimeFromDataUrl(data) || ''),
-      tags: Array.isArray(p.navPaths) && p.navPaths.length ? p.navPaths.slice() : (Array.isArray(p.tags) ? p.tags.slice() : ['imported', 'custom/imported']),
+      tags: Array.isArray(p.tags) && p.tags.length ? p.tags.slice() : ['imported', 'custom'],
       data
     })
   }
@@ -2236,16 +2392,20 @@ function hydratePlacedPropsWithEmbeddedAssets(list, embeddedAssets){
       p.mime = String(asset.mime || p.mime || getMimeFromDataUrl(asset.data) || '')
       p.source = 'imported'
       if (!p.propId) p.propId = String(asset.assetId)
-      attachAssetTaxonomy(p, { tags: asset.tags || p.navPaths || p.tags || ['imported', 'custom/imported'] })
+      attachAssetTaxonomy(p, { tags: asset.tags || p.tags || ['imported', 'custom'] })
     } else {
-      attachAssetTaxonomy(p, { tags: p.navPaths || p.tags || [] })
+      attachAssetTaxonomy(p, { tags: p.tags || p.navPaths || [] })
     }
     return p
   }).filter(p => p && p.url)
 }
 
 function rebuildPropsCatalog(){
-  propsCatalog = [...builtInPropsCatalog, ...importedPropsCatalog].map(p => attachAssetTaxonomy(p, { tags: p.navPaths || p.tags || [] }))
+  propsCatalog = [...builtInPropsCatalog, ...importedPropsCatalog].map(p => ({ ...p }))
+  const model = buildCatalogTagModel(propsCatalog)
+  propsCatalog = propsCatalog.map(p => attachAssetTaxonomy(p, { tags: p.tags || p.navPaths || [] }, model))
+  builtInPropsCatalog = propsCatalog.filter(p => p.source === 'bundled')
+  importedPropsCatalog = propsCatalog.filter(p => p.source === 'imported')
   const validPaths = new Set(['all'])
   for (const p of propsCatalog){ for (const path of (p.navPaths || [])) validPaths.add(String(path).toLowerCase()) }
   if (!validPaths.has(String(assetBrowserActivePath || 'all').toLowerCase())) assetBrowserActivePath = 'all'
@@ -2450,7 +2610,7 @@ async function makeImportedPropFromFile(f, i=0){
     url: dataUrl,
     mime: String(f?.type || getMimeFromDataUrl(dataUrl) || ''),
     source: "imported"
-  }, { tags: ['imported', 'custom/imported', filenameTag] })
+  }, { tags: ['imported', 'custom', filenameTag] })
 }
 async function appendImportedPropsFromFiles(fileList){
   const files = Array.from(fileList || [])
