@@ -369,6 +369,10 @@ const waterOpacity = document.getElementById("waterOpacity")
 const waterWidth = document.getElementById("waterWidth")
 const waterOutlineEnabled = document.getElementById("waterOutlineEnabled")
 const waterRipplesEnabled = document.getElementById("waterRipplesEnabled")
+const waterCellSize = document.getElementById("waterCellSize")
+const waterSeamBright = document.getElementById("waterSeamBright")
+const waterCenterGlow = document.getElementById("waterCenterGlow")
+const waterDepthStrength = document.getElementById("waterDepthStrength")
 const styleRenderGeneral = document.getElementById("styleRenderGeneral")
 const textStylePanel = document.getElementById("textStylePanel")
 const textContentInput = document.getElementById("textContentInput")
@@ -620,12 +624,22 @@ function syncUI(){
   if (!dungeon.style.water.color) dungeon.style.water.color = "#6bb8ff"
   if (!Number.isFinite(Number(dungeon.style.water.opacity))) dungeon.style.water.opacity = 0.4
   if (!Number.isFinite(Number(dungeon.style.water.width))) dungeon.style.water.width = 52
+  if (!Number.isFinite(Number(dungeon.style.water.glowStrength))) dungeon.style.water.glowStrength = 1.15
+  if (!Number.isFinite(Number(dungeon.style.water.depthStrength))) dungeon.style.water.depthStrength = 0.95
+  if (!Number.isFinite(Number(dungeon.style.water.sparkleAmount))) dungeon.style.water.sparkleAmount = 0.38
+  if (!Number.isFinite(Number(dungeon.style.water.centerGlow))) dungeon.style.water.centerGlow = 1.05
+  if (!Number.isFinite(Number(dungeon.style.water.seamBright))) dungeon.style.water.seamBright = 1.15
+  if (!Number.isFinite(Number(dungeon.style.water.cellSize))) dungeon.style.water.cellSize = 1.15
   if (waterEnabled) waterEnabled.checked = !!dungeon.style.water.enabled
   if (waterColor) waterColor.value = dungeon.style.water.color
   if (waterOpacity) waterOpacity.value = String(dungeon.style.water.opacity)
   if (waterWidth) waterWidth.value = String(dungeon.style.water.width)
   if (waterOutlineEnabled) waterOutlineEnabled.checked = dungeon.style.water.outlineEnabled !== false
   if (waterRipplesEnabled) waterRipplesEnabled.checked = dungeon.style.water.ripplesEnabled !== false
+  if (waterCellSize) waterCellSize.value = String(dungeon.style.water.cellSize)
+  if (waterSeamBright) waterSeamBright.value = String(dungeon.style.water.seamBright)
+  if (waterCenterGlow) waterCenterGlow.value = String(dungeon.style.water.centerGlow)
+  if (waterDepthStrength) waterDepthStrength.value = String(dungeon.style.water.depthStrength)
   if (showTextPreview) showTextPreview.checked = !!dungeon.style.showTextPreview
   if (showTextExport) showTextExport.checked = !!dungeon.style.showTextExport
   snapStrength.value = dungeon.style.snapStrength
@@ -734,6 +748,10 @@ if (waterOpacity) waterOpacity.addEventListener("input", () => { dungeon.style.w
 if (waterWidth) waterWidth.addEventListener("input", () => { dungeon.style.water.width = Number(waterWidth.value) })
 if (waterOutlineEnabled) waterOutlineEnabled.addEventListener("change", () => { dungeon.style.water.outlineEnabled = !!waterOutlineEnabled.checked; compiledSig = "" })
 if (waterRipplesEnabled) waterRipplesEnabled.addEventListener("change", () => { dungeon.style.water.ripplesEnabled = !!waterRipplesEnabled.checked; compiledSig = "" })
+if (waterCellSize) waterCellSize.addEventListener("input", () => { dungeon.style.water.cellSize = Number(waterCellSize.value); compiledSig = "" })
+if (waterSeamBright) waterSeamBright.addEventListener("input", () => { dungeon.style.water.seamBright = Number(waterSeamBright.value); dungeon.style.water.glowStrength = Math.max(Number(dungeon.style.water.glowStrength || 1.15), Number(waterSeamBright.value) * 0.92); compiledSig = "" })
+if (waterCenterGlow) waterCenterGlow.addEventListener("input", () => { dungeon.style.water.centerGlow = Number(waterCenterGlow.value); compiledSig = "" })
+if (waterDepthStrength) waterDepthStrength.addEventListener("input", () => { dungeon.style.water.depthStrength = Number(waterDepthStrength.value); compiledSig = "" })
 if (lineDashed) lineDashed.addEventListener("change", () => { if (!dungeon.style.lines || typeof dungeon.style.lines !== "object") dungeon.style.lines = {}; dungeon.style.lines.dashed = !!lineDashed.checked })
 
 if (textContentInput) textContentInput.addEventListener('input', () => { const t = getSelectedText(); if (t) { t.text = textContentInput.value; if (textEditorState && textEditorState.id === t.id && textCanvasEditor && document.activeElement !== textCanvasEditor) textCanvasEditor.value = t.text; if (textEditorState && textEditorState.id === t.id) positionTextEditorOverlayForText(t) } })
