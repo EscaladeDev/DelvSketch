@@ -82,6 +82,20 @@
       ]
     },
     {
+      "id": "bedroll",
+      "name": "Bedroll",
+      "src": "bedroll.svg",
+      "gridW": 1.6,
+      "gridH": 1.0,
+      "tags": [
+        "interior",
+        "furniture",
+        "sleeping",
+        "beds",
+        "camp"
+      ]
+    },
+    {
       "id": "bed",
       "name": "Bed",
       "src": "bed.svg",
